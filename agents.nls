@@ -1,1 +1,19 @@
+turtles-own [
+  speed
+]
 
+to setup-agents
+  create-turtles 7 [
+    setxy random-xcor random-ycor
+    set speed 1
+    set color blue
+  ]
+
+  show (word "Created " count turtles " agents")
+end
+
+to move-agents
+  ask turtles [
+    forward speed
+  ]
+end
