@@ -1,0 +1,12 @@
+patches-own [
+  blocked?
+]
+
+to setup-environment
+  ask patches [
+    set blocked? false
+    set pcolor green
+  ]
+
+  show "Environment initialized"
+end
