@@ -1,5 +1,5 @@
 ﻿# NetLogo temporary lock and export files
-*.nlogox
+*.nlogo
 *.csv
 *.png
 
