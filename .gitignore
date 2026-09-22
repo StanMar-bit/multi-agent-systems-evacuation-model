@@ -1,7 +1,5 @@
-﻿# NetLogo temporary lock and export files
-*.nlogo
+﻿# NetLogo export files
 *.csv
-*.png
 
 # Operating system metadata
 .DS_Store
