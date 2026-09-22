@@ -4,17 +4,7 @@ patches-own [
 
 to setup-environment
   ;; 1. Load the floorplan image directly onto the patch grid
-  import-pcolors "floorplans/floorplan_basic.png"
-
-  ;; 2. Categorize patches based on the imported image colors
-  ask patches [
-    ;;ifelse pcolor = black [
-      ;;set blocked? true      ;; Black pixels are non-walkable walls
-    ;;] ;;[
-      ;;set pcolor white       ;; Clean up open spaces to pure white
-      ;;set blocked? false     ;; White pixels are walkable paths
-    ;;]
-  ]
+ ;; import-pcolors "floorplans/floorplan_basic.png"
 
   show "Environment initialized"
 end
