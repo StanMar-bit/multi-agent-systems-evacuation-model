@@ -1,14 +1,16 @@
-patches-own [
-  object      ;; "floor" or "wall"
+patches-own [;;every patch has this properties
+  object      ;; "floor" or "wall" or "door"; every patch can hold one string value in object
   blocked?    ;; true if wall, false if walkable floor
+  ;;question mark (?) is a standard naming convention for boolean values (things that can only be true or false).
 ]
 
+;;main environment setup
 to setup-environment
   ;; 1. Set smaller world dimensions (~half size)
   resize-world -32 32 -16 16
 
   ;; 2. Initialize everything as open white floor
-  ask patches [
+  ask patches [ ;;tells every single grid square (patch) in the world to perform a specific set of instructions.
     set pcolor white
     set object "floor"
     set blocked? false
@@ -26,7 +28,7 @@ end
 ;; --- SCALED WALL LAYOUT DEFINITIONS ---
 
 to build-main-hall-walls
-  ;; Main outer corridors and hallway boundaries
+  ;; Main outer corridors and hallway boundaries, pycor and pxcor is for checking coordinate
   if (pycor = -16 and ((pxcor >= -21 and pxcor <= -18) or (pxcor >= 18 and pxcor <= 22))) [ mark-as-wall ]
   if (pycor = 8 and pxcor >= -18 and pxcor <= 22) [ mark-as-wall ]
   if (pycor = 5 and pxcor >= -17 and pxcor < 19) [ mark-as-wall ]
