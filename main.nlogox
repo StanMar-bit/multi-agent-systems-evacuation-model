@@ -8,14 +8,26 @@
 
 to setup
   clear-all
-  reset-ticks
+  
+  setup-environment    ;; Loads the PNG floorplan and marks blocked patches
+  setup-agents         ;; Spawns evacuees/agents on open patches
+  
+  reset-ticks          ;; Resets tick counter to 0 (enables "Go" button)
 end
 
 to go
-  tick
+  ;; Stop the simulation automatically if everyone has escaped or reached safety
+  ;;if not any? turtles [ stop ]
+  
+  move-agents          ;; Step logic for agent movement and navigation
+  
+  tick                 ;; Advance time by 1 step
 end</code>
   <widgets>
     <view x="368" wrappingAllowedX="true" y="10" frameRate="30.0" minPycor="-16" height="434" showTickCounter="true" patchSize="13.0" fontSize="10" wrappingAllowedY="true" width="434" tickCounterLabel="ticks" maxPycor="16" updateMode="0" maxPxcor="16" minPxcor="-16"></view>
+    <button x="30" y="65" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55" display="setup">setup</button>
+    <button x="125" y="65" height="40" disableUntilTicks="true" forever="false" kind="Observer" width="55" display="step">go</button>
+    <button x="190" y="65" height="40" disableUntilTicks="true" forever="true" kind="Observer" width="55" display="go">go</button>
   </widgets>
   <info>## WHAT IS IT?
 
