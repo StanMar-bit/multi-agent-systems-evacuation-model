@@ -1,10 +1,102 @@
 patches-own [
-  blocked?
+  object      ;; "floor" or "wall"
+  blocked?    ;; true if wall, false if walkable floor
 ]
 
 to setup-environment
-  ;; 1. Load the floorplan image directly onto the patch grid
- ;; import-pcolors "floorplans/floorplan_basic.png"
+  ;; 1. Set smaller world dimensions (~half size)
+  resize-world -32 32 -16 16
 
-  show "Environment initialized"
+  ;; 2. Initialize everything as open white floor
+  ask patches [
+    set pcolor white
+    set object "floor"
+    set blocked? false
+  ]
+
+  ;; 3. Build scaled structural walls
+  ask patches [
+    build-main-hall-walls
+    build-classroom-walls
+    build-office-walls
+    build-doors
+  ]
+end
+
+;; --- SCALED WALL LAYOUT DEFINITIONS ---
+
+to build-main-hall-walls
+  ;; Main outer corridors and hallway boundaries
+  if (pycor = -16 and ((pxcor >= -21 and pxcor <= -18) or (pxcor >= 18 and pxcor <= 22))) [ mark-as-wall ]
+  if (pycor = 8 and pxcor >= -18 and pxcor <= 22) [ mark-as-wall ]
+  if (pycor = 5 and pxcor >= -17 and pxcor < 19) [ mark-as-wall ]
+  if (pycor > -16 and pycor <= 14 and pxcor = -21) [ mark-as-wall ]
+  if (pycor > -16 and pycor <= 5 and pxcor = -18) [ mark-as-wall ]
+  if (pycor > -16 and pycor <= 5 and pxcor = 18) [ mark-as-wall ]
+  if (pycor > -16 and pycor <= 14 and pxcor = 22) [ mark-as-wall ]
+  
+  ;; Stairwell and entrance hallway structures
+  if (pycor >= 11 and pxcor = -20) [ mark-as-wall ]
+  if (pycor >= 9 and pycor <= 15 and pxcor = -17) [ mark-as-wall ]
+  if (pycor = 16 and pxcor >= -19 and pxcor <= -17) [ mark-as-wall ]
+  if (pycor >= 2 and pycor <= 4 and (pxcor = -7 or pxcor = -1)) [ mark-as-wall ]
+  if (pycor = 1 and pxcor >= -7 and pxcor <= -1) [ mark-as-wall ]
+end
+
+to build-classroom-walls
+  ;; Left Classrooms
+  if ((pycor > 4 and pycor <= 14) and pxcor = -28) [ mark-as-wall ]
+  if (pycor = 5 and pxcor >= -28 and pxcor <= -21) [ mark-as-wall ]
+  if (pycor = 15 and pxcor >= -28 and pxcor < -21) [ mark-as-wall ]
+  
+  if ((pycor > -6 and pycor <= 4) and pxcor = -28) [ mark-as-wall ]
+  if (pycor = -6 and pxcor >= -28 and pxcor <= -21) [ mark-as-wall ]
+  
+  if ((pycor > -16 and pycor <= -6) and pxcor = -28) [ mark-as-wall ]
+  if (pycor = -16 and pxcor >= -28 and pxcor <= -21) [ mark-as-wall ]
+
+  ;; Right Classrooms
+  if ((pycor > 4 and pycor <= 14) and pxcor = 29) [ mark-as-wall ]
+  if (pycor = 5 and pxcor >= 22 and pxcor <= 29) [ mark-as-wall ]
+  if (pycor = 15 and pxcor >= 22 and pxcor <= 29) [ mark-as-wall ]
+
+  if ((pycor > -6 and pycor <= 4) and pxcor = 29) [ mark-as-wall ]
+  if (pycor = -6 and pxcor >= 22 and pxcor <= 29) [ mark-as-wall ]
+
+  if ((pycor > -16 and pycor <= -6) and pxcor = 29) [ mark-as-wall ]
+  if (pycor = -16 and pxcor >= 22 and pxcor <= 29) [ mark-as-wall ]
+end
+
+to build-office-walls
+  ;; Office interior wall partitions
+  if (pycor >= 9 and pycor <= 13 and (pxcor = 18 or pxcor = 7 or pxcor = 11)) [ mark-as-wall ]
+  if (pycor >= 14 and pycor <= 15 and pxcor >= 18 and pxcor <= 21) [ mark-as-wall ]
+  if (pycor >= 14 and pycor <= 15 and pxcor >= 7 and pxcor <= 11) [ mark-as-wall ]
+  if (pycor = 14 and pxcor >= 11 and pxcor <= 18) [ mark-as-wall ]
+  if (pxcor >= 1 and pxcor <= 6 and pycor = 13) [ mark-as-wall ]
+  if (pxcor = 0 and pycor >= 9 and pycor <= 13) [ mark-as-wall ]
+end
+
+to build-doors
+  ;; Classroom Doors (Turquoise)
+  if (pxcor = -21 and (pycor = 9 or pycor = 0 or pycor = -9)) [ mark-as-door "intermediate-door" turquoise ]
+  if (pxcor = 22 and (pycor = 9 or pycor = 0 or pycor = -9)) [ mark-as-door "intermediate-door" turquoise ]
+
+  ;; Main Building Exit Doors (Green)
+  if (pycor = 1 and (pxcor = -4 or pxcor = -3)) [ mark-as-door "door" green ]       ;; Main entrance exit
+  if (pxcor = -20 and pycor = 16) [ mark-as-door "door" green ]                     ;; Back exit / stairwell door
+  if (pycor = 14 and pxcor = 14) [ mark-as-door "door" green ]                      ;; Office exit door
+end
+
+;; Helper procedure to flag walls and make them visible
+to mark-as-wall
+  set object "wall"
+  set blocked? true
+  set pcolor black
+end
+
+to mark-as-door [door-type door-color]
+  set object door-type
+  set blocked? false      ;; Agents can walk through doors
+  set pcolor door-color
 end
