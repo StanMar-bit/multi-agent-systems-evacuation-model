@@ -1,19 +1,337 @@
 turtles-own [
   speed
+  origin-path
+  origin
+  relation
+  cognitive-state
+  agent-arousal    ;; renamed from arousal-level — that name is taken by the slider
+  evacuated?
+  escaping?
+  stuck-count
+  escape-until
 ]
 
 to setup-agents
+  if not any? patches with [reachable? = true] [
+    compute-reachable-area
+  ]
+
   create-turtles 7 [
-    setxy random-xcor random-ycor
+    move-to one-of patches with [
+      object = "floor"
+      and reachable?
+      and pxcor >= -28 and pxcor <= 29   ;; adjust to your building's real x-range
+      and pycor >= -16 and pycor <= 16   ;; adjust to your building's real y-range
+    ]
     set speed 1
     set color blue
+    set stuck-count 0
+    set origin (list xcor ycor)
+    set origin-path (list origin)
+    set cognitive-state "rational"
+    set agent-arousal arousal-level
+    set evacuated? false
+    set escaping? false
+    set escape-until 0
+  ]
+
+  ask turtles [
+    set relation other turtles with [who mod 2 = [who mod 2] of myself]
   ]
 
   show (word "Created " count turtles " agents")
 end
 
 to move-agents
-  ask turtles [
-    forward speed
+  ask turtles with [not evacuated?] [
+    update-cognitive-state
+    act
+    check-if-evacuated
+    set origin-path lput (list xcor ycor) origin-path
   ]
+end
+
+to check-if-evacuated  ;; turtle procedure
+  if is-exit? [
+    set evacuated? true
+    set color gray
+  ]
+end
+
+to update-cognitive-state  ;; turtle procedure
+  ifelse agent-arousal > 75 [
+    set cognitive-state "panic"
+  ][
+    ifelse agent-arousal > 50 and any? relation in-radius 5 [
+      set cognitive-state "follow"
+    ][
+      ifelse agent-arousal > 50 [
+        set cognitive-state "return"
+      ][
+        set cognitive-state "rational"
+      ]
+    ]
+  ]
+end
+
+to act  ;; turtle procedure
+  if cognitive-state = "panic"    [ move-panicked  stop ]
+  if cognitive-state = "follow"   [ move-follow     stop ]
+  if cognitive-state = "return"   [ move-return      stop ]
+  if cognitive-state = "rational" [ move-rational   stop ]
+end
+
+to move-panicked  ;; turtle procedure
+  rt (random 90 - 45)
+  try-forward speed
+end
+
+to move-follow  ;; turtle procedure
+  let target min-one-of relation [distance myself]
+  if target != nobody [ head-toward speed (towards target) ]
+  help-evacuees
+end
+
+to move-return  ;; turtle procedure
+  ifelse distancexy (item 0 origin) (item 1 origin) < speed [
+    ;; back at origin — re-evaluate instead of freezing permanently
+    set cognitive-state "rational"
+  ][
+    head-toward speed (towardsxy (item 0 origin) (item 1 origin))
+  ]
+end
+
+to move-rational  ;; turtle procedure
+  let exit-target min-one-of patches with [is-exit?] [distance myself]
+  ifelse exit-target != nobody [
+    head-toward speed (towards exit-target)
+  ][
+    try-forward speed
+  ]
+  help-evacuees
+end
+
+to head-toward [d desired-h]  ;; turtle procedure
+  ifelse escaping? and ticks < escape-until [
+    ;; stay committed to the escape heading, ignore target for now
+  ][
+    set heading desired-h
+    set escaping? false
+  ]
+  try-forward d
+end
+
+to try-forward [d]  ;; turtle procedure
+  let old-position (list pxcor pycor)
+
+  let clear-h find-clear-heading d 180
+
+  ifelse clear-h != -1 [
+    set heading clear-h
+    forward d
+
+    let new-position (list pxcor pycor)
+
+    ;; Detect no movement
+    ifelse new-position = old-position [
+      set stuck-count stuck-count + 1
+    ][
+      ;; Detect repeated movement through recently visited patches
+      ifelse recently-visited? patch-here [
+        set stuck-count stuck-count + 1
+      ][
+        set stuck-count 0
+      ]
+    ]
+
+    ;; Force an escape when trapped
+    if stuck-count >= 3 [
+      escape-corner d
+    ]
+
+    ;; Mark that we had to deviate from our preferred direction
+    if clear-h != heading [
+      set escaping? true
+      set escape-until ticks + 5
+    ]
+  ][
+    set stuck-count stuck-count + 1
+
+    if stuck-count >= 2 [
+      escape-corner d
+    ]
+  ]
+end
+
+to-report find-clear-heading [d max-angle]  ;; turtle reporter
+  let step 15
+  let angle 0
+
+  let best-heading -1
+  let best-score -999999
+
+  while [angle <= max-angle] [
+
+    ;; Check clockwise direction
+    let h1 (heading + angle) mod 360
+    let old-heading heading
+    set heading h1
+    let p1 patch-ahead d
+    set heading old-heading
+
+    if p1 != nobody [
+      if not [blocked?] of p1 [
+
+        let score 100 - angle
+
+        ;; Strongly discourage going back to recently visited patches
+        if recently-visited? p1 [
+          set score score - 150
+        ]
+
+        ;; Small random component prevents identical corner choices
+        set score score + random-float 10
+
+        if score > best-score [
+          set best-score score
+          set best-heading h1
+        ]
+      ]
+    ]
+
+    ;; Check counter-clockwise direction
+    if angle > 0 [
+      let h2 (heading - angle) mod 360
+      set old-heading heading
+      set heading h2
+      let p2 patch-ahead d
+      set heading old-heading
+
+      if p2 != nobody [
+        if not [blocked?] of p2 [
+
+          let score 100 - angle
+
+          if recently-visited? p2 [
+            set score score - 150
+          ]
+
+          set score score + random-float 10
+
+          if score > best-score [
+            set best-score score
+            set best-heading h2
+          ]
+        ]
+      ]
+    ]
+
+    set angle angle + step
+  ]
+
+  report best-heading
+end
+
+to-report recently-visited? [p]  ;; turtle reporter
+  if p = nobody [
+    report true
+  ]
+
+  let history-length min (list 10 (length origin-path))
+
+  if history-length = 0 [
+    report false
+  ]
+
+  let start-index length origin-path - history-length
+  let recent-history sublist origin-path start-index (length origin-path)
+
+  let p-position (list [pxcor] of p [pycor] of p)
+
+  report member? p-position recent-history
+end
+
+to escape-corner [d]  ;; turtle procedure
+  let step 15
+  let angle 0
+
+  let best-heading -1
+  let best-score -999999
+
+  while [angle <= 180] [
+
+    ;; clockwise
+    let h1 (heading + angle) mod 360
+    let old-heading heading
+    set heading h1
+    let p1 patch-ahead d
+    set heading old-heading
+
+    if p1 != nobody [
+      if not [blocked?] of p1 [
+
+        let score angle + random-float 30
+
+        if recently-visited? p1 [
+          set score score - 200
+        ]
+
+        if score > best-score [
+          set best-score score
+          set best-heading h1
+        ]
+      ]
+    ]
+
+    ;; counter-clockwise
+    if angle > 0 [
+      let h2 (heading - angle) mod 360
+      set old-heading heading
+      set heading h2
+      let p2 patch-ahead d
+      set heading old-heading
+
+      if p2 != nobody [
+        if not [blocked?] of p2 [
+
+          let score angle + random-float 30
+
+          if recently-visited? p2 [
+            set score score - 200
+          ]
+
+          if score > best-score [
+            set best-score score
+            set best-heading h2
+          ]
+        ]
+      ]
+    ]
+
+    set angle angle + step
+  ]
+
+  if best-heading != -1 [
+    set heading best-heading
+    forward d
+
+    set escaping? true
+    set escape-until ticks + 8
+  ]
+
+  set stuck-count 0
+end
+
+
+to help-evacuees  ;; turtle procedure
+  if agent-arousal < 60 [
+    ask relation with [distance myself < 2 and agent-arousal > 70 and not evacuated?] [
+      set agent-arousal agent-arousal - 5
+      set cognitive-state "follow"
+    ]
+  ]
+end
+
+to-report is-exit?  ;; patch procedure
+  report (object = "door" and pcolor = green)
 end
