@@ -1,7 +1,7 @@
 patches-own [;;every patch has this properties
   object      ;; "floor" or "wall" or "door"; every patch can hold one string value in object
   blocked?    ;; true if wall, false if walkable floor
-  ;;question mark (?) is a standard naming convention for boolean values (things that can only be true or false).
+  reachable?  ;; true if this patch is connected to the building interior (set by compute-reachable-area)
 ]
 
 ;;main environment setup
@@ -89,6 +89,30 @@ to build-doors
   if (pxcor = -20 and pycor = 16) [ mark-as-door "door" green ]                     ;; Back exit / stairwell door
   if (pycor = 14 and pxcor = 14) [ mark-as-door "door" green ]                      ;; Office exit door
 end
+
+to compute-reachable-area
+  ask patches [ set reachable? false ]
+
+  let seed one-of patches with [object = "floor" and pxcor = 0 and pycor = 0]
+  if seed = nobody [
+    set seed one-of patches with [object = "floor" and distance patch 0 0 < 3]
+  ]
+
+  ask seed [ set reachable? true ]
+  let frontier (patch-set seed)
+
+  while [any? frontier] [
+    let new-frontier patch-set nobody
+    ask frontier [
+      ask neighbors4 with [not blocked? and not reachable?] [
+        set reachable? true
+        set new-frontier (patch-set new-frontier self)
+      ]
+    ]
+    set frontier new-frontier
+  ]
+end
+
 
 ;; Helper procedure to flag walls and make them visible
 to mark-as-wall
