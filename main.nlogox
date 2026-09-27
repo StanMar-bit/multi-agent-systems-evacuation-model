@@ -8,12 +8,14 @@
 
 to setup
   clear-all
+  setup-environment
+  compute-reachable-area
+  setup-agents
   
-  setup-environment    ;; Loads the PNG floorplan and marks blocked patches
-  setup-agents         ;; Spawns evacuees/agents on open patches
-  
-  reset-ticks          ;; Resets tick counter to 0 (enables "Go" button)
+  reset-ticks
 end
+
+
 
 to go
   ;; Stop the simulation automatically if everyone has escaped or reached safety
@@ -24,10 +26,11 @@ to go
   tick                 ;; Advance time by 1 step
 end</code>
   <widgets>
-    <view x="368" wrappingAllowedX="true" y="10" frameRate="30.0" minPycor="-16" height="434" showTickCounter="true" patchSize="13.0" fontSize="10" wrappingAllowedY="true" width="434" tickCounterLabel="ticks" maxPycor="16" updateMode="0" maxPxcor="16" minPxcor="-16"></view>
+    <view x="368" wrappingAllowedX="true" y="10" frameRate="30.0" minPycor="-16" height="434" showTickCounter="true" patchSize="13.0" fontSize="10" wrappingAllowedY="true" width="850" tickCounterLabel="ticks" maxPycor="16" updateMode="0" maxPxcor="32" minPxcor="-32"></view>
     <button x="30" y="65" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55" display="setup">setup</button>
     <button x="125" y="65" height="40" disableUntilTicks="true" forever="false" kind="Observer" width="55" display="step">go</button>
     <button x="190" y="65" height="40" disableUntilTicks="true" forever="true" kind="Observer" width="55" display="go">go</button>
+    <slider x="15" step="1" y="170" max="100" width="250" display="arousal-level" height="50" min="0" direction="Horizontal" default="50.0" variable="arousal-level"></slider>
   </widgets>
   <info>## WHAT IS IT?
 
