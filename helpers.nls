@@ -1,0 +1,177 @@
+;; ============================================================================
+;; HELPERS
+;;
+;; Built from the proposal ("Helper agents"). Helpers assist evacuees, with the
+;; main purpose of minimizing casualties. Each helper has:
+;;   - a movement speed           (inherited turtles-own variable speed)
+;;   - a detection radius         (Table 1 "helper range": 5 m)
+;;   - an assistance capacity     (how many evacuees it can help per tick)
+;;   - knowledge of the optimal exit
+;; Helpers direct evacuees within range to that exit, make them walk faster,
+;; and lower their arousal level and the randomness of their path.
+;; Panicking evacuees ignore instructions, so helpers cannot help them.
+;;
+;; ASSUMPTIONS (the proposal does not say how helpers move or when they start):
+;;   - helpers start at random places in the building and become active when the
+;;     alarm sounds, or when they see fire, smoke or people running. They are
+;;     trained staff, so they have no pre-movement delay;
+;;   - the optimal exit is the nearest exit the helper can reach from where it stands;
+;;   - while a helper can reach an evacuee who has not been helped yet, it walks
+;;     to the nearest one (squeezing past people in a crowd); after that it
+;;     leaves through the nearest exit;
+;;   - helpers do not lose health (the proposal only gives evacuees health).
+;; ============================================================================
+
+breed [ helpers helper ]
+
+helpers-own [
+  active?            ;; true once the helper knows about the fire
+  detection-radius   ;; distance (m) within which the helper can instruct evacuees
+  capacity           ;; how many evacuees the helper can help per tick
+  recommended-exit   ;; the optimal exit (its number) that the helper sends people to
+  step-budget        ;; walking distance saved up for the next step (part of a patch)
+]
+
+globals [
+  ;; ---- values used by the helpers (ASSUMPTION: the proposal gives no numbers) ----
+  helper-walking-speed       ;; m/s
+  helper-speed-factor        ;; a helped evacuee walks this many times faster
+  helped-randomness-factor   ;; a helped evacuee's chance of a random step is multiplied by this
+  helper-calming             ;; arousal lowered for each tick an evacuee is helped
+
+  ;; ---- results ----
+  helpers-out                ;; number of helpers that left the building
+]
+
+
+;; ---------------------------------------------------------------------------
+;; Setup
+;; ---------------------------------------------------------------------------
+
+to set-helper-parameters
+  set helper-walking-speed 1.34      ;; ASSUMPTION: the mean walking speed from Table 1
+  set helper-speed-factor 1.2        ;; ASSUMPTION: helped evacuees walk 20% faster
+  set helped-randomness-factor 0.5   ;; ASSUMPTION: half as many random steps
+  set helper-calming 0.05            ;; ASSUMPTION
+end
+
+to setup-helpers
+  set-helper-parameters
+  set helpers-out 0
+
+  create-helpers number-of-helpers [
+    move-to one-of patches with [start-patch?]
+    set shape "person"
+    set color magenta
+    set speed helper-walking-speed
+    set detection-radius helper-range    ;; slider (Table 1: 5 m)
+    set capacity helper-capacity         ;; slider
+    set active? false
+    set recommended-exit -1
+    set step-budget 0
+    set cognitive-state "helper"         ;; inherited variable; helpers have no cognitive states
+  ]
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Schedule step (4): helpers instruct
+;; ---------------------------------------------------------------------------
+
+to helpers-instruct
+  ask helpers [
+    if not active? [ check-if-helper-notices-fire ]
+    if active? [ instruct-evacuees ]
+  ]
+end
+
+;; Without an alarm, a helper starts working once it sees fire, smoke or people running.
+to check-if-helper-notices-fire  ;; helper procedure
+  if (any? patches in-radius vision-radius with [fire?])
+     or (smoke >= smoke-notice-level)
+     or (any? evacuees in-radius vision-radius with [moving?]) [
+    set active? true
+  ]
+end
+
+to instruct-evacuees  ;; helper procedure
+  ;; the optimal exit: the nearest exit the helper can reach from where it stands
+  set recommended-exit nearest-safe-exit
+
+  ;; evacuees within range who listen (panicking evacuees ignore instructions)
+  let listeners evacuees in-radius detection-radius with [cognitive-state != "panic"]
+
+  ;; help at most 'capacity' of them this tick, the most aroused ones first
+  let number-to-help min list capacity (count listeners)
+  let chosen max-n-of number-to-help listeners [agent-arousal]
+
+  let exit-to-use recommended-exit
+  ask chosen [ receive-help exit-to-use ]
+end
+
+;; What happens to an evacuee that a helper assists.
+to receive-help [exit-number]  ;; evacuee procedure
+  set instructed-exit exit-number                                ;; directed to the helper's exit
+  lower-arousal helper-calming                                   ;; calmer
+  set helped? true                                               ;; walks faster from now on (see current-speed)
+  set randomness base-randomness * helped-randomness-factor      ;; fewer random steps
+  ;; ASSUMPTION: a helper telling you to leave ends the waiting
+  if not aware? [ set aware? true ]
+  if not moving? [ start-moving ]
+  update-color
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Schedule step (5): helpers move
+;; ---------------------------------------------------------------------------
+
+to move-helpers
+  if any? helpers with [active?] [ make-help-distance-map ]
+
+  ask helpers with [active?] [
+    set step-budget step-budget + speed
+    while [step-budget >= 1] [
+      ;; Can the helper still reach someone who needs help? Then go there.
+      ;; Otherwise its work is done: leave through the nearest exit.
+      ifelse [help-distance] of patch-here < no-route [
+        step-toward-help-needed
+      ][
+        step-toward-exit nearest-safe-exit
+        if exit-door? [ leave-building-as-helper ]   ;; the helper is removed, which also ends this loop
+      ]
+      set step-budget step-budget - 1
+    ]
+  ]
+end
+
+;; One step "downhill" on the help map, toward the nearest evacuee who still needs help.
+;; Exit doors are never on this route (see make-help-distance-map), so a helper
+;; who is still helping never stands in an exit.
+;; ASSUMPTION: when evacuees stand in the way, the helper squeezes past one of
+;; them by swapping places (there is still at most one agent per patch).
+;; Without this, a helper in a doorway and a crowd can block each other forever.
+to step-toward-help-needed  ;; helper procedure
+  let my-steps [help-distance] of patch-here
+  let better-patches neighbors4 with [walkable? and not exit-door? and help-distance < my-steps]
+  if not any? better-patches [ stop ]
+
+  let free-patches better-patches with [free?]
+  ifelse any? free-patches [
+    step-to one-of free-patches
+  ][
+    let patches-with-evacuee better-patches with [any? evacuees-here]
+    if any? patches-with-evacuee [
+      let target-patch one-of patches-with-evacuee
+      let person one-of evacuees-on target-patch
+      let my-old-patch patch-here
+      step-to target-patch
+      ask person [ move-to my-old-patch ]
+    ]
+  ]
+end
+
+to leave-building-as-helper  ;; helper procedure
+  set helpers-out helpers-out + 1
+  die
+end

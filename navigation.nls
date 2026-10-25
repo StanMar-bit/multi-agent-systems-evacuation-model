@@ -1,0 +1,217 @@
+;; ============================================================================
+;; NAVIGATION: how evacuees and helpers find their way
+;;
+;; The idea is a "distance map". Every patch stores how many steps it is from
+;; each exit, counted by walking around walls (and around fire). An agent that
+;; wants to reach exit number i simply steps to a neighbouring patch with a
+;; lower number for exit i. That always follows the shortest route, through
+;; doors and corridors.
+;;
+;; - Steps go to the 4 neighbouring patches only (no diagonal steps), so agents
+;;   cannot slip through the corners of walls.
+;; - An agent never steps onto a patch where another agent stands, so there is
+;;   at most one agent per patch. This creates queues at doors and exits.
+;; - Scale: 1 patch = 1 m and 1 tick = 1 s. A speed of 1.34 m/s therefore means
+;;   1.34 patches per tick.
+;; ============================================================================
+
+globals [
+  exits                 ;; list of exits; each exit is a patch-set of exit-door patches that touch each other
+  main-entrance         ;; number of the main entrance in the exits list (the widest exit)
+  fire-count-last-map   ;; number of burning patches when the distance maps were last made
+]
+
+patches-own [
+  exit-distances   ;; list: for each exit, the number of steps from this patch to that exit
+  help-distance    ;; number of steps from this patch to the nearest evacuee who still needs a helper
+]
+
+;; A very large number that means "there is no route".
+to-report no-route
+  report 999999
+end
+
+;; Called once from setup (after setup-environment and setup-alarm-and-fire).
+to setup-navigation
+  find-exits
+  make-exit-distance-maps
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Patch reporters
+;; ---------------------------------------------------------------------------
+
+;; Exit doors are made in environment.nls with object "door".
+;; (Classroom doors are "intermediate-door"; they are normal walkable patches.)
+to-report exit-door?
+  report object = "door"
+end
+
+;; A patch you can walk on: no wall and no fire.
+to-report walkable?
+  report not blocked? and not fire?
+end
+
+;; A patch an agent may step onto: walkable and nobody standing on it.
+to-report free?
+  report walkable? and not any? turtles-here
+end
+
+;; A patch where an evacuee or helper can be placed at the start:
+;; an empty floor patch inside the building (reachable? comes from environment.nls).
+to-report start-patch?
+  report object = "floor" and reachable? and not fire? and not any? turtles-here
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Exits and distance maps
+;; ---------------------------------------------------------------------------
+
+;; Collect the exits. A door that is two patches wide (like the main entrance)
+;; counts as one exit, so exit patches that touch each other are grouped.
+;; Exits are numbered in reading order (top to bottom, left to right), so the
+;; numbers are the same in every run.
+to find-exits
+  set exits []
+  let ungrouped patches with [exit-door?]
+  while [any? ungrouped] [
+    ;; start a new exit with the first patch in reading order and keep adding
+    ;; exit patches that touch it
+    let this-exit patch-set first sort ungrouped
+    let previous-size 0
+    while [count this-exit > previous-size] [
+      set previous-size count this-exit
+      set this-exit (patch-set this-exit [neighbors4 with [exit-door?]] of this-exit)
+    ]
+    set exits lput this-exit exits
+    set ungrouped ungrouped with [not member? self this-exit]
+  ]
+
+  ;; ASSUMPTION: the main entrance is the widest exit (the one with the most door patches)
+  set main-entrance 0
+  let i 0
+  while [i < length exits] [
+    if count item i exits > count item main-entrance exits [ set main-entrance i ]
+    set i i + 1
+  ]
+end
+
+;; Fill exit-distances on every patch with a "flood fill" from each exit:
+;; the exit patches get 0, their walkable neighbours 1, the neighbours of
+;; those 2, and so on. Patches that cannot reach the exit keep no-route.
+to make-exit-distance-maps
+  ask patches [ set exit-distances n-values (length exits) [ no-route ] ]
+
+  let i 0
+  while [i < length exits] [
+    let steps 0
+    let ring (item i exits) with [walkable?]   ;; a burning exit cannot be used
+    ask ring [ set exit-distances replace-item i exit-distances 0 ]
+    while [any? ring] [
+      set steps steps + 1
+      ;; the next ring: walkable neighbours that do not have a distance to this exit yet
+      set ring patch-set [neighbors4 with [walkable? and item i exit-distances = no-route]] of ring
+      ask ring [ set exit-distances replace-item i exit-distances steps ]
+    ]
+    set i i + 1
+  ]
+
+  set fire-count-last-map count patches with [fire?]
+end
+
+;; Routes only change when the fire grows (or shrinks), so only then are the maps made again.
+to update-exit-distance-maps
+  if count patches with [fire?] != fire-count-last-map [ make-exit-distance-maps ]
+end
+
+;; The same flood fill, but starting from every evacuee who still needs help.
+;; Helpers walk "downhill" on this map to reach the nearest one (helpers.nls).
+;; These routes never go over an exit door: a helper standing on an exit would block it.
+to make-help-distance-map
+  ask patches [ set help-distance no-route ]
+  let steps 0
+  let ring patch-set [patch-here] of evacuees with [needs-help?]
+  ask ring [ set help-distance 0 ]
+  while [any? ring] [
+    set steps steps + 1
+    set ring patch-set [neighbors4 with [walkable? and not exit-door? and help-distance = no-route]] of ring
+    ask ring [ set help-distance steps ]
+  ]
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Turtle reporters: which exit, and how far
+;; ---------------------------------------------------------------------------
+
+;; Number of steps from my patch to exit number i.
+to-report steps-to-exit [i]
+  report item i [exit-distances] of patch-here
+end
+
+;; True if exit number i exists and can be reached from my patch.
+to-report can-reach-exit? [i]
+  if i = -1 [ report false ]
+  report steps-to-exit i < no-route
+end
+
+;; The number of the exit that is closest by walking (not blocked by fire),
+;; or -1 when no exit can be reached.
+to-report nearest-safe-exit
+  let distances [exit-distances] of patch-here
+  if empty? distances [ report -1 ]
+  if min distances = no-route [ report -1 ]
+  report position (min distances) distances
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Turtle procedures: taking one step (one patch)
+;; ---------------------------------------------------------------------------
+
+;; One step along the shortest route to exit number i.
+;; If the next patch on the route is taken by someone else, wait this step.
+to step-toward-exit [i]
+  if not can-reach-exit? i [ step-randomly  stop ]   ;; no route: wander and hope to find one
+
+  let my-steps steps-to-exit i
+  let better-patches neighbors4 with [free? and item i exit-distances < my-steps]
+  ;; all better patches are exactly one step closer, so any of them will do
+  if any? better-patches [ step-to one-of better-patches ]
+end
+
+;; One step in (roughly) a wanted direction: of the free neighbouring patches,
+;; take the one closest to the wanted heading. Never turn more than 90 degrees,
+;; so an agent does not walk back the way it wanted to avoid; it waits instead.
+to step-in-direction [wanted-heading]
+  let best-patch nobody
+  let smallest-turn 999
+  foreach shuffle [0 90 180 270] [ direction ->
+    let candidate patch-at-heading-and-distance direction 1
+    if candidate != nobody [
+      if [free?] of candidate [
+        let turn abs (subtract-headings wanted-heading direction)
+        if turn <= 90 and turn < smallest-turn [
+          set smallest-turn turn
+          set best-patch candidate
+        ]
+      ]
+    ]
+  ]
+  if best-patch != nobody [ step-to best-patch ]
+end
+
+;; One step to a random free neighbouring patch.
+to step-randomly
+  let options neighbors4 with [free?]
+  if any? options [ step-to one-of options ]
+end
+
+;; Move to a neighbouring patch and look in the direction of the step
+;; (followers use these headings to see where other people are going).
+to step-to [target-patch]
+  face target-patch
+  move-to target-patch
+end

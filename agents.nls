@@ -1,16 +1,34 @@
+;; ============================================================================
+;; OLD PROTOTYPE CODE - NOT USED ANY MORE
+;;
+;; This is the first version of the agents. Since the evacuees and helpers from
+;; the proposal were added (evacuees.nls, helpers.nls, navigation.nls and
+;; alarm-and-fire.nls), setup and go in main.nlogox no longer call anything in
+;; this file. The procedures below are kept for now and can be removed once
+;; the team agrees. The arousal-level slider on the interface belongs to this
+;; old code too and is not used either.
+;;
+;; STILL USED: three variables in turtles-own (marked USED below). The new
+;; evacuees and helpers inherit them, because NetLogo does not allow a breed
+;; to declare a variable that turtles-own already has. Do not remove these
+;; three without moving them to evacuees-own and helpers-own.
+;; ============================================================================
+
 turtles-own [
-  speed
-  origin-path
-  origin
-  relation
-  cognitive-state
+  speed            ;; USED by evacuees.nls and helpers.nls: walking speed in m/s (= patches per tick)
+  origin-path      ;; OLD, unused
+  origin           ;; OLD, unused
+  relation         ;; OLD, unused (the new evacuees use companion instead)
+  cognitive-state  ;; USED by evacuees.nls: "unaware", "waiting", "rational", "familiar", "follower" or "panic"
   agent-arousal    ;; renamed from arousal-level — that name is taken by the slider
-  evacuated?
-  escaping?
-  stuck-count
-  escape-until
+                   ;; USED by evacuees.nls, now on the proposal's 0-1 scale (the old code below uses 0-100)
+  evacuated?       ;; OLD, unused
+  escaping?        ;; OLD, unused
+  stuck-count      ;; OLD, unused
+  escape-until     ;; OLD, unused
 ]
 
+;; OLD - NOT USED (see the note at the top of this file)
 to setup-agents
   if not any? patches with [reachable? = true] [
     compute-reachable-area
@@ -42,6 +60,7 @@ to setup-agents
   show (word "Created " count turtles " agents")
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to move-agents
   ask turtles with [not evacuated?] [
     update-cognitive-state
@@ -51,6 +70,7 @@ to move-agents
   ]
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to check-if-evacuated  ;; turtle procedure
   if is-exit? [
     set evacuated? true
@@ -58,6 +78,7 @@ to check-if-evacuated  ;; turtle procedure
   ]
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to update-cognitive-state  ;; turtle procedure
   ifelse agent-arousal > 75 [
     set cognitive-state "panic"
@@ -74,6 +95,7 @@ to update-cognitive-state  ;; turtle procedure
   ]
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to act  ;; turtle procedure
   if cognitive-state = "panic"    [ move-panicked  stop ]
   if cognitive-state = "follow"   [ move-follow     stop ]
@@ -81,17 +103,20 @@ to act  ;; turtle procedure
   if cognitive-state = "rational" [ move-rational   stop ]
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to move-panicked  ;; turtle procedure
   rt (random 90 - 45)
   try-forward speed
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to move-follow  ;; turtle procedure
   let target min-one-of relation [distance myself]
   if target != nobody [ head-toward speed (towards target) ]
   help-evacuees
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to move-return  ;; turtle procedure
   ifelse distancexy (item 0 origin) (item 1 origin) < speed [
     ;; back at origin — re-evaluate instead of freezing permanently
@@ -101,6 +126,7 @@ to move-return  ;; turtle procedure
   ]
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to move-rational  ;; turtle procedure
   let exit-target min-one-of patches with [is-exit?] [distance myself]
   ifelse exit-target != nobody [
@@ -111,6 +137,7 @@ to move-rational  ;; turtle procedure
   help-evacuees
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to head-toward [d desired-h]  ;; turtle procedure
   ifelse escaping? and ticks < escape-until [
     ;; stay committed to the escape heading, ignore target for now
@@ -121,6 +148,7 @@ to head-toward [d desired-h]  ;; turtle procedure
   try-forward d
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to try-forward [d]  ;; turtle procedure
   let old-position (list pxcor pycor)
 
@@ -163,6 +191,7 @@ to try-forward [d]  ;; turtle procedure
   ]
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to-report find-clear-heading [d max-angle]  ;; turtle reporter
   let step 15
   let angle 0
@@ -232,6 +261,7 @@ to-report find-clear-heading [d max-angle]  ;; turtle reporter
   report best-heading
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to-report recently-visited? [p]  ;; turtle reporter
   if p = nobody [
     report true
@@ -251,6 +281,7 @@ to-report recently-visited? [p]  ;; turtle reporter
   report member? p-position recent-history
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to escape-corner [d]  ;; turtle procedure
   let step 15
   let angle 0
@@ -323,6 +354,7 @@ to escape-corner [d]  ;; turtle procedure
 end
 
 
+;; OLD - NOT USED (see the note at the top of this file)
 to help-evacuees  ;; turtle procedure
   if agent-arousal < 60 [
     ask relation with [distance myself < 2 and agent-arousal > 70 and not evacuated?] [
@@ -332,6 +364,7 @@ to help-evacuees  ;; turtle procedure
   ]
 end
 
+;; OLD - NOT USED (see the note at the top of this file)
 to-report is-exit?  ;; patch procedure
   report (object = "door" and pcolor = green)
 end

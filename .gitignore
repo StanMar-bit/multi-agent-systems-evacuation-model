@@ -9,3 +9,6 @@ ehthumbs.db
 # Editor / IDE settings
 .vscode/
 .idea/
+
+# Docs
+docs/*

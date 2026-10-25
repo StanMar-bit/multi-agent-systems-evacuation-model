@@ -1,0 +1,53 @@
+;; ============================================================================
+;; ALARM AND FIRE INTERFACE
+;;
+;; The two things from the environment that the agents react to:
+;;
+;;   1. Fire and smoke. The fire model itself will be built by the environment
+;;      team and does not exist yet. The agents only READ the two patch
+;;      variables below, so the fire model only has to set them every tick.
+;;      Until then nothing burns, so everything that depends on fire (noticing
+;;      the fire without an alarm, arousal from flames and smoke, panicking
+;;      evacuees fleeing from the fire, health loss) stays inactive.
+;;
+;;   2. The alarm (proposal, "Alarm Types"), chosen with the alarm-type chooser:
+;;        "none"        evacuees only notice the fire themselves
+;;        "slow whoop"  everybody becomes aware, but the tone carries no information
+;;        "voice"       everybody becomes aware and hears the nearest safe exit
+;;      What the alarm does to an evacuee is in hear-alarm (evacuees.nls).
+;; ============================================================================
+
+patches-own [
+  fire?     ;; true when this patch is burning              (to be set by the fire model)
+  smoke     ;; smoke density from 0 (no smoke) to 1 (thick)  (to be set by the fire model)
+]
+
+globals [
+  alarm-sounding?   ;; true from the moment the alarm goes off
+  detection-delay   ;; seconds between the start of the run and the alarm
+]
+
+;; Called once from setup.
+to setup-alarm-and-fire
+  ask patches [
+    set fire? false   ;; nothing burns at the start (the fire model will change this)
+    set smoke 0
+  ]
+  set alarm-sounding? false
+  ;; ASSUMPTION: the run starts at the moment the fire is detected, so the alarm
+  ;; goes off in the first tick. The environment team can replace this with a
+  ;; smoke detector once the fire model exists.
+  set detection-delay 0
+end
+
+;; Schedule step (2): detection and alarm.
+to update-alarm
+  if alarm-sounding? [ stop ]          ;; the alarm only has to start once
+  if alarm-type = "none" [ stop ]      ;; no alarm: evacuees must notice the fire themselves
+
+  if ticks >= detection-delay [
+    set alarm-sounding? true
+    ask evacuees [ hear-alarm ]        ;; see evacuees.nls
+    ask helpers [ set active? true ]   ;; helpers start working as soon as the alarm sounds
+  ]
+end

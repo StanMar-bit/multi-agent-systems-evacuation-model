@@ -1,0 +1,492 @@
+;; ============================================================================
+;; EVACUEES
+;;
+;; Built from the proposal (MAS Draft Proposal V1, "Evacuee agents" and Table 1).
+;;
+;; The life of an evacuee:
+;;   1. It starts UNAWARE (grey).
+;;   2. It becomes aware through the alarm, or by seeing fire, smoke or people
+;;      running. It then WAITS (yellow) for a pre-movement delay that depends
+;;      on the alarm type.
+;;   3. After the delay it starts moving. Every tick its arousal level A
+;;      (0 = calm, 1 = maximum) selects one of four cognitive states:
+;;        rational  (green)   A < 0.40 and trained    shortest route to the nearest exit
+;;        familiar  (blue)    A < 0.40 and untrained  back to the entrance it came in through
+;;        follower  (orange)  0.40 <= A < 0.75        average direction of people nearby,
+;;                                                    or follows a helper in sight
+;;        panic     (red)     A >= 0.75               up to 1.5x faster away from the fire,
+;;                                                    with random noise, ignores instructions
+;;   4. Evacuees with a companion first walk to that person (Mawson, 2005).
+;;   5. On an exit patch the evacuee is out and is removed from the model.
+;;      If its health reaches 0 it counts as a casualty and is removed too.
+;;
+;; Variables that evacuees inherit from turtles-own in agents.nls and that are reused here:
+;;   speed            walking speed in m/s (= patches per tick)
+;;   cognitive-state  "unaware", "waiting", "rational", "familiar", "follower" or "panic"
+;;   agent-arousal    arousal level A, from 0 (calm) to 1 (maximum), as in the proposal
+;; ============================================================================
+
+breed [ evacuees evacuee ]
+
+evacuees-own [
+  trained?           ;; true if this evacuee had evacuation training
+  health             ;; 100 = healthy, 0 or less = casualty
+  origin-entrance    ;; number of the exit this person came in through (the main entrance)
+  companion          ;; the person this evacuee wants to find first, or nobody
+  companion-found?   ;; true once next to the companion, or after giving up the search
+  aware?             ;; true once the evacuee knows something is wrong
+  delay-left         ;; seconds of pre-movement delay still to wait
+  moving?            ;; true once the pre-movement delay is over
+  reaction-time      ;; tick at which this evacuee started moving (-1 = not yet)
+  instructed-exit    ;; exit named by the voice alarm or by a helper (-1 = none)
+  helped?            ;; true once a helper has assisted this evacuee
+  randomness         ;; chance that a step goes in a random direction instead of the planned one
+  step-budget        ;; walking distance saved up for the next step (part of a patch)
+]
+
+globals [
+  ;; ---- values used by the evacuees ------------------------------------------
+  ;; Values marked "proposal" come from the proposal. Values marked ASSUMPTION
+  ;; are not given in the proposal; they are provisional and set in
+  ;; set-evacuee-parameters below, so they are easy to find and change.
+  follower-threshold        ;; A from which an evacuee becomes a follower
+  whoop-mean-delay          ;; mean pre-movement delay with a slow whoop (s)
+  voice-mean-delay          ;; mean pre-movement delay with voice instructions (s)
+  self-noticed-mean-delay   ;; mean pre-movement delay after noticing the fire yourself (s)
+  whoop-arousal-increase    ;; arousal increase when the slow whoop starts
+  voice-arousal-decrease    ;; arousal decrease when the voice message starts
+  flame-arousal-gain        ;; arousal gained per second while seeing flames
+  smoke-arousal-gain        ;; arousal gained per second while standing in smoke
+  trained-gain-factor       ;; trained evacuees gain arousal at this fraction of the normal rate
+  smoke-notice-level        ;; smoke density from which an evacuee notices the smoke
+  base-randomness           ;; normal chance of a random step
+  companion-search-time     ;; seconds an evacuee looks for its companion before going alone
+  fire-damage               ;; health lost per second on a burning patch
+  smoke-damage              ;; health lost per second in the thickest smoke (smoke = 1)
+
+  ;; ---- results ---------------------------------------------------------------
+  evacuated-count           ;; number of evacuees that got out
+  casualties                ;; number of evacuees whose health reached 0
+  reaction-times            ;; list with the reaction time of every evacuee that started moving
+  last-exit-time            ;; second in which the last evacuee got out
+  rational-ticks            ;; seconds spent in each cognitive state, added up over all evacuees
+  familiar-ticks
+  follower-ticks
+  panic-ticks
+]
+
+
+;; ---------------------------------------------------------------------------
+;; Setup
+;; ---------------------------------------------------------------------------
+
+to set-evacuee-parameters
+  set follower-threshold 0.40        ;; proposal
+  set whoop-mean-delay 60            ;; proposal (Proulx and Sime, 1991), provisional
+  set voice-mean-delay 30            ;; proposal (Proulx and Sime, 1991), provisional
+  set self-noticed-mean-delay 60     ;; ASSUMPTION: same as with a slow whoop
+  set whoop-arousal-increase 0.1     ;; proposal
+  set voice-arousal-decrease 0.1     ;; ASSUMPTION: the proposal only says "arousal is lowered"
+  set flame-arousal-gain 0.02        ;; ASSUMPTION: flames twice as strong as smoke (Deng et al., 2022: flames > smoke)
+  set smoke-arousal-gain 0.01        ;; ASSUMPTION
+  set trained-gain-factor 0.5        ;; ASSUMPTION: proposal says trained evacuees gain arousal "at a lower rate"
+  set smoke-notice-level 0.1         ;; ASSUMPTION
+  set base-randomness 0.1            ;; ASSUMPTION: 1 in 10 steps goes in a random direction
+  set companion-search-time 30       ;; ASSUMPTION
+  set fire-damage 50                 ;; ASSUMPTION: two seconds in the fire is deadly
+  set smoke-damage 2                 ;; ASSUMPTION: 50 seconds in the thickest smoke is deadly
+end
+
+to setup-evacuees
+  set-evacuee-parameters
+  set evacuated-count 0
+  set casualties 0
+  set reaction-times []
+  set last-exit-time 0
+  set rational-ticks 0
+  set familiar-ticks 0
+  set follower-ticks 0
+  set panic-ticks 0
+
+  create-evacuees number-of-evacuees [
+    move-to one-of patches with [start-patch?]
+    set shape "person"
+    set trained? false                                  ;; the trained evacuees are chosen below
+    set speed max list 0.5 (random-normal 1.34 0.26)    ;; Table 1: N(1.34, 0.26) m/s, at least 0.5 so nobody stands still
+    set health 100
+    set origin-entrance main-entrance                   ;; ASSUMPTION: everybody came in through the main entrance
+    set companion nobody                                ;; companions are chosen below
+    set companion-found? true
+    set aware? false
+    set delay-left 0
+    set moving? false
+    set reaction-time -1
+    set instructed-exit -1
+    set helped? false
+    set randomness base-randomness
+    set step-budget 0
+    set cognitive-state "unaware"
+  ]
+
+  ;; exactly the chosen proportion of evacuees is trained (Table 1: 0, 0.5 or 1)
+  ask n-of round (proportion-trained * count evacuees) evacuees [ set trained? true ]
+
+  ask evacuees [ set agent-arousal starting-arousal ]
+  pair-up-companions
+  ask evacuees [ update-color ]
+end
+
+;; Proposal: "trained agents start with lower arousal".
+;; ASSUMPTION: untrained evacuees start between 0.1 and 0.3, trained evacuees at half of that.
+to-report starting-arousal  ;; evacuee reporter
+  let start-level 0.1 + random-float 0.2
+  if trained? [ set start-level start-level * 0.5 ]
+  report start-level
+end
+
+;; Table 1: an evacuee has a companion with p = 0.30. Companions come in pairs,
+;; so (0.30 x number of evacuees / 2) pairs are made.
+;; ASSUMPTION: companions start within 10 m of each other.
+to pair-up-companions
+  repeat round (companion-probability * count evacuees / 2) [
+    let person-a one-of evacuees with [companion = nobody]
+    let person-b nobody
+    if person-a != nobody [
+      ask person-a [ set person-b one-of other evacuees in-radius 10 with [companion = nobody] ]
+    ]
+    if person-b != nobody [
+      ask person-a [ set companion person-b  set companion-found? false ]
+      ask person-b [ set companion person-a  set companion-found? false ]
+    ]
+  ]
+end
+
+
+;; ---------------------------------------------------------------------------
+;; The alarm (called from update-alarm in alarm-and-fire.nls)
+;; ---------------------------------------------------------------------------
+
+to hear-alarm  ;; evacuee procedure
+  if alarm-type = "slow whoop" [
+    ;; the tone carries no information: arousal rises, and untrained evacuees
+    ;; keep using their familiar exit
+    raise-arousal whoop-arousal-increase
+    if not aware? [ become-aware whoop-mean-delay ]
+  ]
+
+  if alarm-type = "voice" [
+    if not aware? [ become-aware voice-mean-delay ]
+    ;; panicking evacuees ignore instructions
+    if cognitive-state != "panic" [
+      lower-arousal voice-arousal-decrease
+      set instructed-exit nearest-safe-exit   ;; the message names the nearest safe exit
+    ]
+  ]
+end
+
+;; The evacuee now knows something is wrong and starts its pre-movement delay.
+to become-aware [mean-delay]  ;; evacuee procedure
+  set aware? true
+  ;; proposal: log-normal delay. ASSUMPTION: standard deviation = half the mean.
+  set delay-left random-lognormal mean-delay (mean-delay / 2)
+  set cognitive-state "waiting"
+end
+
+;; A random number from a log-normal distribution with the given mean and
+;; standard deviation. NetLogo has no log-normal built in, so we turn the mean
+;; and standard deviation into those of ln(x), which is normally distributed.
+to-report random-lognormal [the-mean the-sd]
+  let sigma-squared ln (1 + (the-sd ^ 2) / (the-mean ^ 2))
+  let mu (ln the-mean) - (sigma-squared / 2)
+  report exp (random-normal mu (sqrt sigma-squared))
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Schedule step (3): perceive, update arousal and choose a cognitive state
+;; ---------------------------------------------------------------------------
+
+to evacuees-perceive
+  ask evacuees [ perceive-and-decide ]
+end
+
+to perceive-and-decide  ;; evacuee procedure
+  ;; --- 1. What can I see?
+  let sight vision
+  let sees-flames? any? patches in-radius sight with [fire?]
+  let in-smoke? smoke >= smoke-notice-level
+  let sees-people-running? (any? other evacuees in-radius sight with [moving?])
+                           or (any? helpers in-radius sight with [active?])
+
+  ;; --- 2. Without an alarm, evacuees only become aware from what they see themselves.
+  if not aware? and (sees-flames? or in-smoke? or sees-people-running?) [
+    become-aware self-noticed-mean-delay
+  ]
+
+  ;; --- 3. Flames raise arousal more than smoke (Deng et al., 2022).
+  if sees-flames? [ raise-arousal flame-arousal-gain ]
+  if in-smoke? [ raise-arousal smoke-arousal-gain ]
+
+  ;; --- 4. Count down the pre-movement delay.
+  if aware? and not moving? [
+    set delay-left delay-left - 1
+    if delay-left <= 0 [ start-moving ]
+  ]
+
+  ;; --- 5. Once moving, arousal decides the cognitive state.
+  if moving? [
+    choose-cognitive-state
+    check-companion
+    count-state-time
+  ]
+
+  update-color
+end
+
+;; How far this evacuee can see: Table 1 vision-radius (10 m), less in smoke.
+to-report vision  ;; evacuee reporter
+  report max list 1 (vision-radius * (1 - smoke))
+end
+
+;; Arousal goes up. Proposal: trained evacuees gain arousal at a lower rate.
+to raise-arousal [amount]  ;; evacuee procedure
+  if trained? [ set amount amount * trained-gain-factor ]
+  set agent-arousal min list 1 (agent-arousal + amount)
+end
+
+;; Arousal goes down (voice alarm, helpers).
+to lower-arousal [amount]  ;; evacuee procedure
+  set agent-arousal max list 0 (agent-arousal - amount)
+end
+
+;; The pre-movement delay is over (or a helper ended it): start walking.
+to start-moving  ;; evacuee procedure
+  set moving? true
+  set delay-left 0
+  set reaction-time ticks
+  set reaction-times lput ticks reaction-times
+  choose-cognitive-state
+end
+
+;; The proposal's four cognitive states. When the cognitive-strategy chooser is
+;; set to "all ...", every evacuee is forced into that one state (Experiment 2).
+to choose-cognitive-state  ;; evacuee procedure
+  if cognitive-strategy = "all rational" [ set cognitive-state "rational"  stop ]
+  if cognitive-strategy = "all familiar" [ set cognitive-state "familiar"  stop ]
+  if cognitive-strategy = "all follower" [ set cognitive-state "follower"  stop ]
+  if cognitive-strategy = "all panic"    [ set cognitive-state "panic"     stop ]
+
+  ;; "arousal-based" (the default)
+  ifelse agent-arousal >= panic-threshold [
+    set cognitive-state "panic"
+  ][
+    ifelse agent-arousal >= follower-threshold [
+      set cognitive-state "follower"
+    ][
+      ifelse trained? [
+        set cognitive-state "rational"
+      ][
+        set cognitive-state "familiar"
+      ]
+    ]
+  ]
+end
+
+;; Evacuees with a companion first move toward that person (Mawson, 2005).
+;; The search ends when they stand next to each other, when the companion is gone
+;; (got out or died), or after companion-search-time seconds of walking.
+to check-companion  ;; evacuee procedure
+  if companion-found? [ stop ]
+  if companion = nobody [ set companion-found? true  stop ]
+  if distance companion <= 1.5 [ set companion-found? true  stop ]
+  if ticks - reaction-time >= companion-search-time [ set companion-found? true ]
+end
+
+;; Keep track of how long evacuees spend in each state (for the results).
+to count-state-time  ;; evacuee procedure
+  if cognitive-state = "rational" [ set rational-ticks rational-ticks + 1 ]
+  if cognitive-state = "familiar" [ set familiar-ticks familiar-ticks + 1 ]
+  if cognitive-state = "follower" [ set follower-ticks follower-ticks + 1 ]
+  if cognitive-state = "panic"    [ set panic-ticks panic-ticks + 1 ]
+end
+
+to update-color  ;; evacuee procedure
+  if cognitive-state = "unaware"  [ set color gray ]
+  if cognitive-state = "waiting"  [ set color yellow ]
+  if cognitive-state = "rational" [ set color green ]
+  if cognitive-state = "familiar" [ set color blue ]
+  if cognitive-state = "follower" [ set color orange ]
+  if cognitive-state = "panic"    [ set color red ]
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Schedule step (5): moving
+;; ---------------------------------------------------------------------------
+
+;; Speed is in patches per second. Every second the evacuee adds its speed to
+;; step-budget and takes one step (one patch) for every whole patch in it.
+;; The part of a patch that is left over is used in the next second.
+to move-evacuees
+  ask evacuees with [moving?] [
+    set step-budget step-budget + current-speed
+    while [step-budget >= 1] [
+      take-one-step
+      set step-budget step-budget - 1
+      if exit-door? [ leave-building ]   ;; the evacuee is removed, which also ends this loop
+    ]
+  ]
+end
+
+to-report current-speed  ;; evacuee reporter
+  let current speed
+  if helped? [ set current current * helper-speed-factor ]                 ;; helpers make evacuees walk faster
+  if cognitive-state = "panic" [ set current current * (1 + random-float 0.5) ]  ;; panic: up to 1.5x faster
+  report current
+end
+
+;; One step (one patch), depending on the cognitive state.
+to take-one-step  ;; evacuee procedure
+  ;; panic: away from the fire; ignores companions and instructions
+  if cognitive-state = "panic" [ step-panic  stop ]
+
+  ;; sometimes a step goes in a random direction (helpers make this less likely)
+  if random-float 1 < randomness [ step-randomly  stop ]
+
+  ;; with a companion: first go to that person
+  if not companion-found? and companion != nobody [ step-in-direction (towards companion)  stop ]
+
+  if cognitive-state = "rational" [ step-toward-exit nearest-safe-exit  stop ]
+  if cognitive-state = "familiar" [ step-toward-exit familiar-exit  stop ]
+  if cognitive-state = "follower" [ step-follower  stop ]
+end
+
+;; Familiar: back to the entrance they came in through (Sime, 1985), unless the
+;; voice alarm or a helper told them which exit to use. If that route is cut
+;; off by the fire, they take the nearest exit they can still reach.
+to-report familiar-exit  ;; evacuee reporter
+  if can-reach-exit? instructed-exit [ report instructed-exit ]
+  if can-reach-exit? origin-entrance [ report origin-entrance ]
+  report nearest-safe-exit
+end
+
+;; The exit an evacuee would choose when calm: trained evacuees know all exits
+;; and take the nearest one, untrained evacuees take their familiar exit.
+to-report own-exit-choice  ;; evacuee reporter
+  ifelse trained? [ report nearest-safe-exit ] [ report familiar-exit ]
+end
+
+;; Follower: follow a helper in sight (go where the helper sends people),
+;; otherwise walk in the average direction of the people nearby who are moving.
+;; With nobody to follow, or when the way the crowd is going is blocked (for
+;; example a crowd pushing into a corner), they fall back on their own exit choice.
+to step-follower  ;; evacuee procedure
+  let sight vision
+  let helpers-in-sight helpers in-radius sight with [active?]
+  if any? helpers-in-sight [
+    let nearest-helper min-one-of helpers-in-sight [distance myself]
+    step-toward-exit [recommended-exit] of nearest-helper
+    stop
+  ]
+
+  let people-moving other evacuees in-radius sight with [moving?]
+  ifelse any? people-moving [
+    let old-patch patch-here
+    step-in-direction average-heading-of people-moving
+    if patch-here = old-patch [ step-toward-exit own-exit-choice ]   ;; blocked: use own exit choice
+  ][
+    step-toward-exit own-exit-choice
+  ]
+end
+
+;; The average direction a group of agents is heading in. Headings are averaged
+;; as arrows: add up their x-parts (dx) and y-parts (dy), then take the angle.
+to-report average-heading-of [group]  ;; turtle reporter
+  let x-sum sum [dx] of group
+  let y-sum sum [dy] of group
+  if x-sum = 0 and y-sum = 0 [ report heading ]   ;; the arrows cancel out: keep own direction
+  report atan x-sum y-sum
+end
+
+;; Panic: move away from the nearest fire in sight, with random noise.
+;; Without fire in sight they keep running roughly the way they were going.
+;; When a wall or other people are in the way, they run in a random free
+;; direction instead, so they do not freeze in a corner.
+to step-panic  ;; evacuee procedure
+  ;; ASSUMPTION: a panicking evacuee standing right next to an exit runs out through it
+  let exit-next-to-me one-of neighbors4 with [exit-door? and free?]
+  if exit-next-to-me != nobody [ step-to exit-next-to-me  stop ]
+
+  let flee-heading heading
+  let fire-in-sight patches in-radius vision with [fire?]
+  if any? fire-in-sight [
+    let nearest-fire min-one-of fire-in-sight [distance myself]
+    if nearest-fire != patch-here [ set flee-heading (towards nearest-fire) + 180 ]
+  ]
+  let old-patch patch-here
+  step-in-direction (flee-heading + random 91 - 45)   ;; random noise: up to 45 degrees either way
+  if patch-here = old-patch [ step-randomly ]         ;; blocked: run in a random free direction
+end
+
+;; Standing on an exit patch: the evacuee is out.
+to leave-building  ;; evacuee procedure
+  set evacuated-count evacuated-count + 1
+  set last-exit-time ticks + 1   ;; it got out during this second, so at the end of it
+  die
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Schedule step (6): health
+;; ---------------------------------------------------------------------------
+
+;; Fire and smoke damage health (both are 0 until the fire model exists).
+to update-evacuee-health
+  ask evacuees [
+    if fire? [ set health health - fire-damage ]
+    set health health - smoke * smoke-damage
+    if health <= 0 [
+      set casualties casualties + 1
+      die
+    ]
+  ]
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Reporters for monitors, plots and experiments
+;; ---------------------------------------------------------------------------
+
+;; An evacuee still needs a helper when nobody has helped it yet and it is not
+;; panicking (panicking evacuees ignore instructions).
+to-report needs-help?  ;; evacuee reporter
+  report not helped? and cognitive-state != "panic"
+end
+
+to-report count-in-state [state]
+  report count evacuees with [cognitive-state = state]
+end
+
+;; Proposal: "average reaction time (ticks until an agent starts moving)".
+to-report mean-reaction-time
+  if empty? reaction-times [ report 0 ]
+  report mean reaction-times
+end
+
+;; Proposal: "total evacuation time". While evacuees are still inside this is
+;; the current time; once nobody is left it is the second the last one got out.
+to-report total-evacuation-time
+  ifelse any? evacuees [ report ticks ] [ report last-exit-time ]
+end
+
+;; Proposal: "the share of agents in each cognitive state", measured here as the
+;; share of all moving seconds that evacuees spent in that state.
+to-report share-of-time-in [state]
+  let total rational-ticks + familiar-ticks + follower-ticks + panic-ticks
+  if total = 0 [ report 0 ]
+  if state = "rational" [ report rational-ticks / total ]
+  if state = "familiar" [ report familiar-ticks / total ]
+  if state = "follower" [ report follower-ticks / total ]
+  if state = "panic"    [ report panic-ticks / total ]
+  report 0
+end
