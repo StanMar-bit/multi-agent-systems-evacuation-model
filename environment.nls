@@ -2,6 +2,7 @@ patches-own [;;every patch has this properties
   object      ;; "floor" or "wall" or "door"; every patch can hold one string value in object
   blocked?    ;; true if wall, false if walkable floor
   reachable?  ;; true if this patch is connected to the building interior (set by compute-reachable-area)
+  inflammatory?
 ]
 
 ;;main environment setup
@@ -23,6 +24,10 @@ to setup-environment
     build-office-walls
     build-doors
   ]
+  
+  ;; 4. Add flammable objects
+  setup-inflammatory-objects
+
 end
 
 ;; --- SCALED WALL LAYOUT DEFINITIONS ---
@@ -137,4 +142,45 @@ to mark-as-door [door-type door-color]
   set object door-type
   set blocked? false      ;; Agents can walk through doors
   set pcolor door-color
+end
+
+to setup-inflammatory-objects
+
+  ask patches [
+    set inflammatory? false
+
+    ;; DESKS: rows inside all six classrooms (Brown)
+    if (object = "floor" and
+        member? pxcor (list -27 -26 -24 -23 23 24 26 27) and
+        member? pycor (list -13 -10 -3 2 10 13)) [
+      set object "desk"
+      set inflammatory? true
+      set pcolor brown
+    ]
+
+    ;; CLOSETS: classrooms and offices (Dark Gray)
+    if (object = "floor" and
+        ((member? pxcor (list -27 28) and
+          member? pycor (list -8 -1 8)) or
+         (member? pxcor (list 1 8 12 19) and pycor = 11))) [
+      set object "closet"
+      set inflammatory? true
+      set pcolor gray - 2
+    ]
+
+    ;; TREES: outside the building (Green)
+    if (object = "floor" and
+        member? pxcor (list -31 -30 30 31) and
+        member? pycor (list -12 -11 -2 -1 10 11)) [
+      set object "tree"
+      set inflammatory? true
+      set pcolor green + 2
+    ]
+
+    ;; DOORS: keep existing colors and functionality
+    if (member? object (list "door" "intermediate-door")) [
+      set inflammatory? true
+    ]
+  ]
+
 end
