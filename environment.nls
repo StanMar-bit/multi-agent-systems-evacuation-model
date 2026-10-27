@@ -88,6 +88,18 @@ to build-doors
   if (pycor = 1 and (pxcor = -4 or pxcor = -3)) [ mark-as-door "door" green ]       ;; Main entrance exit
   if (pxcor = -20 and pycor = 16) [ mark-as-door "door" green ]                     ;; Back exit / stairwell door
   if (pycor = 14 and pxcor = 14) [ mark-as-door "door" green ]                      ;; Office exit door
+  
+  ;; Office Doors (Blue) 
+  if (pxcor = 3 and pycor = 13) [ mark-as-door "intermediate-door" blue ]
+  if (pxcor = 9 and pycor = 8) [ mark-as-door "intermediate-door" blue ]
+  if (pycor = 8 and (pxcor = 15 or pxcor = 20)) [ mark-as-door "intermediate-door" blue ]
+  
+  ;; Missing office door (Blue)
+  if (pxcor = 3 and pycor = 8) [ mark-as-door "intermediate-door" blue ]
+
+  ;; Entrance to central exit block (Green)
+  if (pxcor = -4 and pycor = 5) [ mark-as-door "intermediate-door" green ]
+  
 end
 
 to compute-reachable-area
