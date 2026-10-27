@@ -1,0 +1,35 @@
+;; ============================================================================
+;; FIRE AND SMOKE MODEL (fire.nls)
+;; ============================================================================
+
+to setup-fire
+  ask patches [
+    set fire? false
+    set smoke 0;;density
+  ]
+
+  ;; Pick a random unblocked floor patch near the interior to start the fire
+  ask one-of patches with [not blocked? and object = "floor" and reachable?] [
+    set fire? true
+    set smoke 1.0
+    set pcolor red
+  ]
+end
+
+to spread-fire
+  ;;TODO:
+  ;;chanage how it spreads - more logically not hust in patches -> not so fast people need to have the possibibility to escape
+  ;;after some time it burnes out and people can go to gray patches
+  ask patches with [fire? and smoke >= 1.0] [
+    ask neighbors4 with [not blocked? and not fire?] [
+      set fire? true
+      set smoke 0.5
+      set pcolor red
+    ]
+  ]
+
+  ;;Increase smoke density over time for active fires, or burn out - this can be changed as well
+  ask patches with [fire?] [
+    set smoke min (list 1.0 (smoke + 0.1))
+  ]
+end
