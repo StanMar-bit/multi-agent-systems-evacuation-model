@@ -1,3 +1,4 @@
+
 ;; ============================================================================
 ;; FIRE MODEL
 ;; ============================================================================
@@ -6,11 +7,16 @@ to setup-fire
   ask patches [
     set fire? false
     set smoke 0
+    set fire-time 0
+    set burned? false
   ]
 
-  ;;logically can start on something that bruns
-  let start-patches patches with [not blocked? and (object = "desk" or object = "closet") and reachable?]
-  
+  let start-patches patches with [
+    not blocked? and
+    (object = "desk" or object = "closet") and
+    reachable?
+  ]
+
   if not any? start-patches [
     set start-patches patches with [not blocked? and inflammatory? and reachable?]
   ]
@@ -18,41 +24,49 @@ to setup-fire
   ask one-of start-patches [
     set fire? true
     set smoke 1.0
+    set fire-time 0
     set pcolor red
   ]
 end
 
 to spread-fire
-  ;;spread fire to neighbors; if-else
-  ask patches with [fire? and smoke >= 1.0] [;;if patch is on fire
-    ask neighbors with [not blocked? and not fire?] [
-      if-else inflammatory? [;;from environment
-        ;; Flammable stuff catch fire quickly (high probability)
-        if random-float 1.0 < 0.85 [ ;;high probability that it will catch on fire; we can chnage that now it is 85%
+
+  ;; Spread fire to neighboring patches
+  ask patches with [fire? and smoke >= 1.0] [
+    ask neighbors with [not blocked? and not fire? and not burned?] [
+      if-else inflammatory? [
+        if random-float 1.0 < 0.85 [
           set fire? true
           set smoke 0.4
+          set fire-time 0
           set pcolor red
         ]
       ] [
-        ;open floor catches fire very slowly nothing to be birned (low probability)
-        if random-float 1.0 < 0.05 [ ;;low probability; we can change that now it is 5%
+        if random-float 1.0 < 0.05 [
           set fire? true
           set smoke 0.2
-          set pcolor orange   ;; there is fire but not that strong -> no fuel
+          set fire-time 0
+          set pcolor orange
         ]
       ]
     ]
   ]
 
-  ;;increase smoke density over time for active fires
-  ;;IDEA - can be changed
-  ;;for any patch currently on fire, its smoke density increments with each tick (+ 0.1) until it maxes out at 1.0.
-  ask patches with [fire?] [
-    set smoke min (list 1.0 (smoke + 0.1))
-    
-    ;; turn it red once smoke is thick
-    if pcolor = orange and smoke >= 0.8 [
-      set pcolor red
-    ]
+  ;; Increase fire time and smoke density
+ask patches with [fire?] [
+  set fire-time fire-time + 1
+  set smoke min (list 1.0 (smoke + 0.1))
+
+  if pcolor = orange and smoke >= 0.8 [
+    set pcolor red
   ]
+
+  ;; Extinguish fire after 30 ticks
+  if fire-time >= 30 [
+    set fire? false
+    set smoke 0
+    set burned? true
+    set pcolor gray
+  ]
+]
 end
