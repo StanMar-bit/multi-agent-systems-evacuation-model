@@ -20,6 +20,8 @@
 patches-own [
   fire?     ;; true when this patch is burning              (to be set by the fire model)
   smoke     ;; smoke density from 0 (no smoke) to 1 (thick)  (to be set by the fire model)
+  fire-time
+  burned?
 ]
 
 globals [
@@ -32,6 +34,8 @@ to setup-alarm-and-fire
   ask patches [
     set fire? false   ;; nothing burns at the start (the fire model will change this)
     set smoke 0
+    set fire-time 0
+    set burned? false
   ]
   set alarm-sounding? false
   ;; ASSUMPTION: the run starts at the moment the fire is detected, so the alarm
