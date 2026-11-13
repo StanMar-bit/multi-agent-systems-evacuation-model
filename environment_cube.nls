@@ -57,7 +57,7 @@ to build-walls
 end
 
 ;; ---------------------------------------------------------------------
-;; HELPERS - every wall/door is drawn on the left AND mirrored to the right (cube is almost symmetric)
+;; HELPERS - almst every wall/door is drawn on the left AND mirrored to the right (cube is almost symmetric)
 ;; ---------------------------------------------------------------------
 
 ;; Symmetrical one:
@@ -192,11 +192,11 @@ to setup-inflammatory-objects
 end
 
 ;; helpers
-to desk [x y]
+to desk-two [x y]
   ask patches with [(pxcor = x or pxcor = (- x)) and pycor = y and object = "floor"] [ mark-as-desk ]
 end
 
-to desk-one [x y]
+to desk [x y]
   ask patches with [pxcor = x and pycor = y and object = "floor"] [ mark-as-desk ]
 end
 
@@ -223,35 +223,216 @@ end
 ;; Place objects:
 ;; AREA 1: UPPER ROOMS (the five top rooms + the two upper wing rooms)
 to place-objects-upper-rooms
-  desk  -43  24    ;; upper wing room
-  desk  -32  35    ;; top room 1
-  desk  -18  35    ;; top room 2
-  desk    0  35    ;; big middle top room
+  ;; upper wing room
+  ;;outer
+  desk-two  -48  24
+  desk-two  -48  25
+  desk-two  -48  26
+  desk-two  -48  27
+  desk-two  -48  28
+  desk-two  -47  28
+  desk-two  -46  28
+  desk-two  -45  28
+  desk-two  -44  28
+  desk-two  -42  28
+  desk-two  -41  28
+  desk-two  -40  28
+  desk-two  -39  28
+  desk-two  -38  28
+  desk-two  -38  27
+  desk-two  -38  26
+  desk-two  -38  25
+  desk-two  -38  24
+  ;;inner
+  desk-two  -46  24
+  desk-two  -46  25
+  desk-two  -46  26
+  desk-two  -45  26
+  desk-two  -44  26
+  desk-two  -42  26
+  desk-two  -41  26
+  desk-two  -40  26
+  desk-two  -40  25
+  desk-two  -40  24
+  
+  ;; top room 1
+  ;;row 1
+  desk  -33  40
+  desk  -33  39
+  desk  -33  37
+  desk  -33  36
+  desk  -33  34
+  desk  -33  33
+  desk  -33  31
+  desk  -33  30
+  ;;row 2
+  desk  -30  40
+  desk  -30  39
+  desk  -30  37
+  desk  -30  36
+  desk  -30  34
+  desk  -30  33
+  desk  -30  31
+  desk  -30  30
+  
+  ;; top room 2
+  ;;row 1
+  desk  -21  40
+  desk  -21  39
+  desk  -21  37
+  desk  -21  36
+  desk  -21  34
+  desk  -21  33
+  desk  -21  31
+  desk  -21  30
+  ;;row 2
+  desk  -18  40
+  desk  -18  39
+  desk  -18  37
+  desk  -18  36
+  desk  -18  34
+  desk  -18  33
+  desk  -18  31
+  desk  -18  30
+  
+  ;; big middle top room
+  desk   -8  41
+  desk   -7  41
+  desk   -6 41
+  desk   -5  41
+  desk   -4  41
+  desk   -3  41
+  desk   -2  41
+  desk   -1  41
+  desk   0  41
+  desk   1  41
+  desk   2  41
+  desk   3  41
+  desk   4  41
+  desk   5  41
+  desk   10  41
+  desk   11  41
+  
+  ;;top room 3
+  ;;row 1
+  desk   14  41
+  desk   14  38
+  desk   14  35
+  desk   14  32
+  desk   14  29
+  ;; row 2
+  desk   16  41
+  desk   16  38
+  desk   16  35
+  desk   16  32
+  desk   16  29
+  ;; row 3
+  desk   18  41
+  desk   18  38
+  desk   18  35
+  desk   18  32
+  desk   18  29
+  ;; row 4
+  desk   20  41
+  desk   20  38
+  desk   20  35
+  desk   20  32
+  desk   20  29
+  ;; teacher
+  desk   23  35
+  desk   23  36
+  desk   23  37
+  
+  ;;top room 4
+  ;;row 1
+  desk   27  40
+  desk   27  39
+  desk   27  37
+  desk   27  36
+  desk   27  34
+  desk   27  33
+  desk   27  31
+  desk   27  30
+  ;;row 2
+  desk   30  40
+  desk   30  39
+  desk   30  37
+  desk   30  36
+  desk   30  34
+  desk   30  33
+  desk   30  31
+  desk   30  30
 end
 
 ;; AREA 2: INNER PART (central block, hall, around the tall boxes)
 to place-objects-inner-part
   ;; central block, left room
-  desk   -7  22    ;; central block room
+  ;;desk   -7  22    ;; central block room
 end
 
 ;; AREA 3: SIDE ROOMS (the two columns of small rooms)
 to place-objects-side-rooms
   ;; left column of small rooms, from the top down
-  desk  -48  14
-  desk  -48  11
-  desk  -48   7
-  desk  -48   2
-  desk  -48  -2
-  desk  -48  -6
+  desk-two  -48  15
+  desk-two  -47  15
+  
+  desk-two  -48  12
+  desk-two  -47  12
+  
+  desk-two  -48   8
+  desk-two  -48   7
+  desk-two  -47   8
+  desk-two  -47   7
+  
+  desk-two  -48   3
+  desk-two  -48   2
+  desk-two  -47   3
+  desk-two  -47   2
+  
+  desk-two  -48  -1
+  desk-two  -48  -2
+  desk-two  -47  -1
+  desk-two  -47  -2
+  
+  desk-two  -48  -6
+  desk-two  -48  -5
+  desk-two  -47  -6
+  desk-two  -47  -5
   ;; right column of small rooms, from the top down
-  desk  -40  14
-  desk  -40  10
-  desk  -40   7
-  desk  -40   3
-  desk  -40   0
-  desk  -40  -3
-  desk  -40  -6
+  desk-two  -38  14
+  desk-two  -38  15
+  desk-two  -37  14
+  desk-two  -37  15
+  
+  desk-two  -39  11
+  desk-two  -38  11
+  desk-two  -37  11
+  desk-two  -36  11
+  
+  desk-two  -38   7
+  desk-two  -38   8
+  desk-two  -37   7
+  desk-two  -37   8
+  
+  desk-two  -39  4
+  desk-two  -38  4
+  desk-two  -37  4
+  desk-two  -36  4
+  
+  desk-two  -38   1
+  desk-two  -38   0
+  desk-two  -37   1
+  desk-two  -37   0
+  
+  desk-two  -39  -3
+  desk-two  -38  -3
+  desk-two  -37  -3
+  desk-two  -36  -3
+  
+  desk-two  -38   -5
+  desk-two  -38   -6
+  desk-two  -37   -6
+  desk-two  -37   -5
 end
 
 ;; AREA 4: LOWER ROOMS (the two lower wing rooms)
@@ -275,15 +456,33 @@ end
 ;; DOORS - ADD YOUR DOORS HERE (left side only, right is mirrored, if -one then not mirrored)
 ;; =====================================================================
 to build-doors
-  ;; colors:  green = exit, turquoise = inner door, blue = office/top-room door
-  ;; Inner doors (Turquoise)
-  door-v  -36   19   21  turquoise ;; upper wing room -> hall
-  door-v  -36  -16  -14  turquoise ;; lower wing room 1 -> lobby
-  door-v   36  -23  -23  turquoise ;; lower wing room (this one is on the right side)
-  door-v   36  -29  -29  turquoise ;; lower wing room (this one is on the right side)
-  door-v  -23  -19  -17  turquoise ;; auditorium entrance (side)
+  ;; colors:  green = exit, blue = inner door
+  ;; Inner doors (vertical)
+  door-v  -36   19   21  blue ;; upper wing room -> hall
+  door-v   12   27   27  blue ;; upper rooms middle
+  door-v  -36  -16  -14  blue ;; lower wing room 1 -> lobby
+  door-v   36  -23  -23  blue ;; lower wing room (this one is on the right side)
+  door-v   36  -29  -29  blue ;; lower wing room (this one is on the right side)
+  door-v  -23  -19  -17  blue ;; auditorium entrance (side)
+  ;;right column of small rooms, from the top down (looking from left side of building)
+  door-v  -45   14  15  blue
+  door-v  -45   11  12  blue
+  door-v  -45   6   7  blue
+  door-v  -45   1   2  blue
+  door-v  -45   -3  -2  blue
+  door-v  -45   -6  -5  blue
+  
+  ;;left column of small rooms, from the top down (looking from left side of building)
+  door-v  -42   13  14  blue
+  door-v  -42   10  11  blue
+  door-v  -42   6   7  blue
+  door-v  -42   3   4  blue
+  door-v  -42   -1  0  blue
+  door-v  -42   -3  -3  blue
+  door-v  -42   -7  -6  blue
+  
 
-  ;; Office/top-room doors (Blue)
+  ;; Inner doors (horizantal)
   door-h-one   28  -27  -25  blue ;; top room 1 -> hall (left, not mirrored)
   door-h-one   28   33   35  blue ;; top room 1 (right side)
   door-h-one   28  -15  -13  blue ;; top room 2 -> hall (left, not mirrored)
