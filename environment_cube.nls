@@ -1,0 +1,410 @@
+;; =====================================================================
+;; FLOOR PLAN - walls, doors and desks (SYMMETRICAL VERSION)
+;; World: x from -54 to 54, y from -44 to 44. The building itself is x -50..50
+;; and y -42..42; the free strip of 4 patches around it is for the trees.
+;; The middle column is x = 0, so left and right are exact mirrors.
+;; =====================================================================
+
+patches-own [
+  object        ;; "floor" or "wall" or "door" or "intermediate-door" or "desk" or "closet" or "tree"
+  blocked?      ;; true if wall, false if walkable floor/door opening
+  reachable?    ;; true if this patch is connected to the building interior (set by compute-reachable-area)
+  inflammatory? ;; true if this patch can burn (desk, doors, ...)
+]
+
+;; ---------------------------------------------------------------------
+;; MAIN SETUP
+;; ---------------------------------------------------------------------
+
+to setup-environment
+  clear-all
+  resize-world -54 54 -44 44
+  set-patch-size 6
+
+  ;;everything starts as open white floor
+  ask patches [
+    set pcolor white
+    set object "floor"
+    set blocked? false
+    set reachable? false
+    set inflammatory? false
+  ]
+
+  ;; build the walls, area by area
+  build-walls
+
+  ;; cut the doors (openings) into the walls, as written in the code
+  build-doors
+  
+  ;;grass: the outside of the building + the two closed boxes of cube
+  color-outside-green
+  color-courtyards-green
+
+  ;;put the flammable objects (desks) in the rooms
+  setup-inflammatory-objects
+end
+
+;; buiding walls based on area
+to build-walls
+  build-outer-walls
+  build-top-rooms
+  build-upper-wing
+  build-side-rooms
+  build-tall-boxes
+  build-central-block
+  build-lower-wing
+  build-auditorium
+end
+
+;; ---------------------------------------------------------------------
+;; HELPERS - every wall/door is drawn on the left AND mirrored to the right (cube is almost symmetric)
+;; ---------------------------------------------------------------------
+
+;; Symmetrical one:
+
+;; horizontal wall: row y, from x1 to x2 (+ mirror image)
+to h-wall [y x1 x2]
+  ask patches with [pycor = y and
+      ((pxcor >= x1 and pxcor <= x2) or (pxcor >= (- x2) and pxcor <= (- x1)))] [ mark-as-wall ]
+end
+
+;; vertical wall: column x, from y1 to y2 (+ mirror image)
+to v-wall [x y1 y2]
+  ask patches with [(pxcor = x or pxcor = (- x)) and pycor >= y1 and pycor <= y2] [ mark-as-wall ]
+end
+
+;; door in a horizontal wall (+ mirror image)
+to door-h [y x1 x2 door-color]
+  ask patches with [pycor = y and
+      ((pxcor >= x1 and pxcor <= x2) or (pxcor >= (- x2) and pxcor <= (- x1)))] [ mark-as-door door-color ]
+end
+
+;; door in a vertical wall (+ mirror image)
+to door-v [x y1 y2 door-color]
+  ask patches with [(pxcor = x or pxcor = (- x)) and pycor >= y1 and pycor <= y2] [ mark-as-door door-color ]
+end
+
+;; One-sided: NOT mirrored -----
+to h-wall-one [y x1 x2]
+  ask patches with [pycor = y and pxcor >= x1 and pxcor <= x2] [ mark-as-wall ]
+end
+
+to v-wall-one [x y1 y2]
+  ask patches with [pxcor = x and pycor >= y1 and pycor <= y2] [ mark-as-wall ]
+end
+
+to door-h-one [y x1 x2 door-color]
+  ask patches with [pycor = y and pxcor >= x1 and pxcor <= x2] [ mark-as-door door-color ]
+end
+
+to door-v-one [x y1 y2 door-color]
+  ask patches with [pxcor = x and pycor >= y1 and pycor <= y2] [ mark-as-door door-color ]
+end
+
+to mark-as-wall
+  set object "wall"
+  set blocked? true
+  set pcolor black
+end
+
+;; a door is walkable (blocked? = false) and shows in its color - we made different colors for the kind of door we have
+;; green doors are exits ("door"), the other colors are "intermediate-door"- still in the building is used by agent
+to mark-as-door [door-color]
+  ifelse door-color = green
+    [ set object "door" ]
+    [ set object "intermediate-door" ]
+  set blocked? false ;; agents can walk through doors
+  set inflammatory? true
+  set pcolor door-color
+end
+
+;; Colors everything outside the building green
+;; Doors are not "floor", so it stops at them and never goes inside.
+to color-outside-green
+  let frontier (patch-set patch min-pxcor max-pycor)
+  ask frontier [ set pcolor green + 3 ]
+  while [any? frontier] [
+    let next-frontier no-patches
+    ask frontier [
+      ask neighbors4 with [object = "floor" and pcolor = white] [
+        set pcolor green + 3
+        set next-frontier (patch-set next-frontier self)
+      ]
+    ]
+    set frontier next-frontier
+  ]
+end
+
+;; Colors the inside of the two tall boxes (the ones with no doors) green.
+to color-courtyards-green
+  ask patches with [object = "floor" and abs pxcor >= 22 and abs pxcor <= 32
+                    and pycor >= -7 and pycor <= 15] [
+    set pcolor green + 3
+  ]
+end
+
+;; Finds every patch an agent could walk to, starting from the middle of the building. It marks them reachable? = true. 
+;; Walls block the spreading - change
+to compute-reachable-area
+  ;;start - nothing is reachable
+  ask patches [ set reachable? false ]
+
+  ;;start with patch in the center/middle, BUT only if floor (not a wall, desk, etc.)
+  let seed one-of patches with [object = "floor" and pxcor = 0 and pycor = 0]
+  ;; if (0,0) not floor - take any floor patch within 3 steps of it instead
+  if seed = nobody [
+    set seed one-of patches with [object = "floor" and distance patch 0 0 < 3]
+  ]
+
+  ask seed [ set reachable? true ]
+  let frontier (patch-set seed)
+
+  ;;keep spreading until there is nothing new to mark
+  while [any? frontier] [
+    let new-frontier patch-set nobody
+    ask frontier [
+      ask neighbors4 with [not blocked? and not reachable?] [
+        set reachable? true
+        set new-frontier (patch-set new-frontier self)
+      ]
+    ]
+    set frontier new-frontier
+  ]
+end
+
+
+;; =====================================================================
+;; FLAMMABLE OBJECTS
+;; =====================================================================
+;; Two types:  desk (brown)  tree (green)
+
+to setup-inflammatory-objects
+  place-objects-upper-rooms
+  place-objects-inner-part
+  place-objects-side-rooms
+  place-objects-lower-rooms
+  place-objects-outside
+
+  ;; DOORS: keep existing colors and functionality (doors can burn too)
+  ask patches with [member? object (list "door" "intermediate-door")] [
+    set inflammatory? true
+  ]
+end
+
+;; helpers
+to desk [x y]
+  ask patches with [(pxcor = x or pxcor = (- x)) and pycor = y and object = "floor"] [ mark-as-desk ]
+end
+
+to desk-one [x y]
+  ask patches with [pxcor = x and pycor = y and object = "floor"] [ mark-as-desk ]
+end
+
+to mark-as-desk
+  set object "desk"
+  set inflammatory? true
+  set pcolor brown
+end
+
+to tree [x y]
+  ask patches with [(pxcor = x or pxcor = (- x)) and pycor = y and object = "floor"] [ mark-as-tree ]
+end
+
+to tree-one [x y]
+  ask patches with [pxcor = x and pycor = y and object = "floor"] [ mark-as-tree ]
+end
+
+to mark-as-tree
+  set object "tree"
+  set inflammatory? true
+  set pcolor green + 2
+end
+
+;; Place objects:
+;; AREA 1: UPPER ROOMS (the five top rooms + the two upper wing rooms)
+to place-objects-upper-rooms
+  desk  -43  24    ;; upper wing room
+  desk  -32  35    ;; top room 1
+  desk  -18  35    ;; top room 2
+  desk    0  35    ;; big middle top room
+end
+
+;; AREA 2: INNER PART (central block, hall, around the tall boxes)
+to place-objects-inner-part
+  ;; central block, left room
+  desk   -7  22    ;; central block room
+end
+
+;; AREA 3: SIDE ROOMS (the two columns of small rooms)
+to place-objects-side-rooms
+  ;; left column of small rooms, from the top down
+  desk  -48  14
+  desk  -48  11
+  desk  -48   7
+  desk  -48   2
+  desk  -48  -2
+  desk  -48  -6
+  ;; right column of small rooms, from the top down
+  desk  -40  14
+  desk  -40  10
+  desk  -40   7
+  desk  -40   3
+  desk  -40   0
+  desk  -40  -3
+  desk  -40  -6
+end
+
+;; AREA 4: LOWER ROOMS (the two lower wing rooms)
+to place-objects-lower-rooms
+  desk  -43  -15   ;; lower wing room 1
+  desk  -43  -22   ;; lower wing room 2
+  desk    0  -25   ;; auditorium
+end
+
+;; ----- AREA 5: OUTSIDE (the free strip around the building) -----
+to place-objects-outside ;; change
+  ;; trees in two columns on the left (x -53, -52) + mirror on the right
+  ;;foreach [-38 -36 -26 -24 -12 -10 -2 0 10 12 24 26 36 38] [ y ->
+    ;;tree -53 y
+    ;;tree -52 y
+  ;;]
+  ;; add more outside objects below this line
+end
+
+;; =====================================================================
+;; DOORS - ADD YOUR DOORS HERE (left side only, right is mirrored, if -one then not mirrored)
+;; =====================================================================
+to build-doors
+  ;; colors:  green = exit, turquoise = inner door, blue = office/top-room door
+  ;; Inner doors (Turquoise)
+  door-v  -36   19   21  turquoise ;; upper wing room -> hall
+  door-v  -36  -16  -14  turquoise ;; lower wing room 1 -> lobby
+  door-v   36  -23  -23  turquoise ;; lower wing room (this one is on the right side)
+  door-v   36  -29  -29  turquoise ;; lower wing room (this one is on the right side)
+  door-v  -23  -19  -17  turquoise ;; auditorium entrance (side)
+
+  ;; Office/top-room doors (Blue)
+  door-h-one   28  -27  -25  blue ;; top room 1 -> hall (left, not mirrored)
+  door-h-one   28   33   35  blue ;; top room 1 (right side)
+  door-h-one   28  -15  -13  blue ;; top room 2 -> hall (left, not mirrored)
+  door-h-one   28   21   23  blue ;; top room 2 (right side)
+  door-h   18   -8   -6  blue ;; central block room -> hall
+
+  ;; Main Building Exit Doors (Green)
+  door-v   36  -38  -34  green ;; main exit
+  door-h  -42  -34  -32  green ;; EXIT: bottom corner entrance
+end
+
+;; =====================================================================
+;; AREA OUT: OUTER WALLS
+;; =====================================================================
+to build-outer-walls
+  h-wall   42  -36   36 ;; top outer wall (spans the whole width)
+  h-wall  -42  -36   36 ;; (spans the whole width)
+  v-wall  -50  -30   30 ;; left outer wall (right side is mirrored at x=50)
+  h-wall   30  -50  -36 ;; top of the upper wing room
+  h-wall  -30  -50  -36 ;; bottom of the lower wing
+  v-wall  -36   18   42 ;; left wall of the top section + upper wing room
+  v-wall  -36  -42  -11 ;; left wall of the lower wing + entrance hall
+end
+
+;; =====================================================================
+;; AREA TOP: TOP ROOMS (five rooms across the top)
+;; =====================================================================
+to build-top-rooms
+  v-wall  -24   28   42 ;; divider between room 1 and room 2
+  v-wall  -12   28   42 ;; divider between room 2 and the big centre room
+  h-wall   28  -36  -12 ;; bottom wall of the top rooms (the centre room is open)
+end
+
+;; =====================================================================
+;; AREA WING: UPPER WING ROOMS (top left and top right)
+;; =====================================================================
+to build-upper-wing
+  h-wall   18  -50  -36 ;; bottom wall of the upper wing room
+end
+
+;; =====================================================================
+;; AREA SIDE: SIDE ROOMS (two columns of small rooms with a corridor between)
+;; =====================================================================
+to build-side-rooms
+  h-wall   16  -50  -45 ;; top wall, left column
+  h-wall   16  -42  -35 ;; top wall, right column
+  h-wall   -8  -50  -45 ;; bottom wall, left column
+  h-wall   -8  -42  -35 ;; bottom wall, right column
+  ;; diveders (mainly):
+  h-wall   13  -50  -45
+  h-wall    10  -50  -45
+  h-wall    5  -50  -45
+  h-wall   0  -50  -45
+  h-wall   -4  -50  -45
+  h-wall   12  -42  -35
+  h-wall    9  -42  -35
+  h-wall   5  -42  -35
+  h-wall   2  -42  -35 
+  h-wall   -2  -42  -35 
+  h-wall   -4  -42  -35 
+  v-wall  -35   -8   16 ;; right wall of the side rooms
+  v-wall   42  15   15
+  v-wall   42  8   8
+  v-wall   42  1   1
+  v-wall   42  -5   -5
+  v-wall   -45  -7   -7
+  v-wall   -45  -1   -1
+  v-wall   -45  3   4
+  v-wall   -45  8   9
+end
+
+;; =====================================================================
+;; AREA COURT: TALL BOXES (tall rooms left and right of the open hall)
+;; =====================================================================
+to build-tall-boxes
+  h-wall   16  -33  -21 ;; top wall
+  h-wall   -8  -33  -21 ;; bottom wall
+  v-wall  -33   -8   16 ;; outer side wall
+  v-wall  -21   -8   16 ;; inner side wall
+end
+
+;; =====================================================================
+;; AREA BLOCK: CENTRAL BLOCK (two rooms in the middle top of the hall)
+;; =====================================================================
+to build-central-block
+  h-wall   26  -13   13 ;; top wall (spans both halves)
+  h-wall   18  -13   13 ;; bottom wall (spans both halves)
+  h-wall   14  -13   13 ;; change
+  v-wall  -13   18   26 ;; left wall (mirrored at x=13)
+  v-wall    0   18   26 ;; middle wall between the two rooms
+  v-wall  -13   15   15
+  h-wall-one 11 -17 -10
+  h-wall-one 7 -17 -10
+  h-wall-one 3 -17 -10
+  h-wall-one -1 -17 -10
+  h-wall-one -5 -17 -10
+  h-wall-one 11 14 18
+  h-wall-one 7 14 18
+  h-wall-one 3 14 18
+  h-wall-one -1 14 18
+  h-wall-one -5 14 18
+end
+
+;; =====================================================================
+;; AREA LOWER: LOWER WING ROOMS (bottom left and bottom right)
+;; =====================================================================
+to build-lower-wing
+  h-wall  -11  -50  -36 ;; top wall of the lower wing
+  h-wall  -18  -50  -36 ;; divider between the two lower rooms
+  h-wall-one  -24  36  50 ;;change
+end
+
+;; =====================================================================
+;; AREA AUD: AUDITORIUM (stepped box at the bottom centre)
+;; =====================================================================
+to build-auditorium
+  h-wall  -12  -18   18 ;; top wall (spans both halves)
+  h-wall  -14  -23  -18
+  v-wall  -18  -14  -12
+  v-wall  -23  -34  -14 ;; side wall (mirrored at x=23)
+  h-wall  -34  -23  -18
+  v-wall  -18  -38  -38
+  h-wall  -38  -18   18 ;; bottom wall (spans both halves)
+end
