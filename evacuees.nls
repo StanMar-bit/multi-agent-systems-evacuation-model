@@ -4,9 +4,9 @@
 ;; Built from the proposal (MAS Draft Proposal V1, "Evacuee agents" and Table 1).
 ;;
 ;; The life of an evacuee:
-;;   1. It starts UNAWARE (grey).
+;;   1. It starts UNAWARE (dark grey).
 ;;   2. It becomes aware through the alarm, or by seeing fire, smoke or people
-;;      running. It then WAITS (yellow) for a pre-movement delay that depends
+;;      running. It then WAITS (dark yellow) for a pre-movement delay that depends
 ;;      on the alarm type.
 ;;   3. After the delay it starts moving. Every tick its arousal level A
 ;;      (0 = calm, 1 = maximum) selects one of four cognitive states:
@@ -135,7 +135,8 @@ to setup-evacuees
 
   create-evacuees number-of-evacuees [
     move-to one-of patches with [start-patch?]
-    set shape "person"
+    set shape "circle"   ;; a solid dot: easy to see on the floor plan
+    set size 0.9
     set trained? false                                  ;; the trained evacuees are chosen below
     set speed max list 0.5 (random-normal 1.34 0.26)    ;; Table 1: N(1.34, 0.26) m/s, at least 0.5 so nobody stands still
     set health 100
@@ -365,8 +366,8 @@ to count-state-time  ;; evacuee procedure
 end
 
 to update-color  ;; evacuee procedure
-  if cognitive-state = "unaware"  [ set color gray ]
-  if cognitive-state = "waiting"  [ set color yellow ]
+  if cognitive-state = "unaware"  [ set color gray - 2 ]     ;; dark grey and dark yellow: plain grey and
+  if cognitive-state = "waiting"  [ set color yellow - 2 ]   ;; yellow are almost invisible on the white floor
   if cognitive-state = "rational" [ set color green ]
   if cognitive-state = "familiar" [ set color blue ]
   if cognitive-state = "follower" [ set color orange ]

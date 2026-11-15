@@ -66,6 +66,7 @@ to setup-helpers
   create-helpers number-of-helpers [
     move-to one-of patches with [start-patch?]
     set shape "person"
+    set size 1.6         ;; bigger than the evacuees, so the helpers stand out
     set color magenta
     set speed helper-walking-speed
     set detection-radius helper-range    ;; slider (Table 1: 5 m)

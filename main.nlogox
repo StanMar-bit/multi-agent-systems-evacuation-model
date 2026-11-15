@@ -88,11 +88,11 @@ end]]></code>
     <plot x="540" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="evacuees" y="650" xMin="0.0" height="330" legend="true" xMax="100.0" yMin="0.0" width="755" xAxis="time (s)" display="Cognitive states">
       <setup></setup>
       <update></update>
-      <pen interval="1.0" mode="0" display="unaware" color="-7500403" legend="true">
+      <pen interval="1.0" mode="0" display="unaware" color="-10004649" legend="true">
         <setup></setup>
         <update>plot count-in-state "unaware"</update>
       </pen>
-      <pen interval="1.0" mode="0" display="waiting" color="-1184465" legend="true">
+      <pen interval="1.0" mode="0" display="waiting" color="-7171555" legend="true">
         <setup></setup>
         <update>plot count-in-state "waiting"</update>
       </pen>
@@ -136,7 +136,7 @@ Scale: 1 patch = 1 m, 1 tick = 1 s. Each tick: (1) fire and smoke spread, (2) sm
 
 **Alarm (alarm-and-fire.nls).** A smoke detector every 7 m sets off the alarm when it measures smoke. With "none", evacuees only notice the fire themselves (flames or smoke they see, or people running).
 
-**Evacuees (evacuees.nls).** Unaware (grey) -&gt; aware and waiting a log-normal pre-movement delay (yellow; mean 60 s slow whoop, 30 s voice) -&gt; moving. While moving, arousal selects the state:
+**Evacuees (evacuees.nls).** Unaware (dark grey dots) -&gt; aware and waiting a log-normal pre-movement delay (dark yellow; mean 60 s slow whoop, 30 s voice) -&gt; moving. While moving, arousal selects the state:
 
 - rational (green), A &lt; 0.40 and trained: shortest route to the nearest exit;
 - familiar (blue), A &lt; 0.40 and untrained: back along the route it came in by (remembered from the start, even through smoke) until fire blocks it;
