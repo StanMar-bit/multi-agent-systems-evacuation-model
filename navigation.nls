@@ -26,6 +26,8 @@ globals [
 patches-own [
   exit-distances   ;; list: for each exit, the number of steps from this patch to that exit
   help-distance    ;; number of steps from this patch to the nearest evacuee who still needs a helper
+  origin-route-steps ;; steps from this patch to the main entrance at the start of the run, before the
+                     ;; fire: the route people came in by (familiar evacuees walk it back, see evacuees.nls)
 ]
 
 ;; A very large number that means "there is no route".
@@ -37,6 +39,8 @@ end
 to setup-navigation
   find-exits
   make-exit-distance-maps
+  ;; remember the route to the main entrance as it is now, before the fire changes anything
+  ask patches [ set origin-route-steps item main-entrance exit-distances ]
 end
 
 

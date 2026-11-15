@@ -42,6 +42,7 @@ evacuees-own [
   helped?            ;; true once a helper has assisted this evacuee
   randomness         ;; chance that a step goes in a random direction instead of the planned one
   step-budget        ;; walking distance saved up for the next step (part of a patch)
+  route-blocked?     ;; true once fire has cut off the route this evacuee came in by
   panic-speed-factor ;; how much faster this evacuee walks in panic (1 to 1.5)
 ]
 
@@ -128,6 +129,7 @@ to setup-evacuees
     set helped? false
     set randomness base-randomness
     set step-budget 0
+    set route-blocked? false
     set panic-speed-factor 1 + random-float 0.5   ;; proposal: up to 1.5x faster in panic. ASSUMPTION: drawn once per person
     set cognitive-state "unaware"
   ]
@@ -379,23 +381,42 @@ to take-one-step  ;; evacuee procedure
   if not companion-found? and companion != nobody [ step-in-direction (towards companion)  stop ]
 
   if cognitive-state = "rational" [ step-toward-exit nearest-safe-exit  stop ]
-  if cognitive-state = "familiar" [ step-toward-exit familiar-exit  stop ]
+  if cognitive-state = "familiar" [ step-familiar  stop ]
   if cognitive-state = "follower" [ step-follower  stop ]
 end
 
-;; Familiar: back to the entrance they came in through (Sime, 1985), unless the
-;; voice alarm or a helper told them which exit to use. If that route is cut
-;; off by the fire, they take the nearest exit they can still reach.
-to-report familiar-exit  ;; evacuee reporter
-  if can-reach-exit? instructed-exit [ report instructed-exit ]
-  if can-reach-exit? origin-entrance [ report origin-entrance ]
-  report nearest-safe-exit
+;; Familiar (Sime, 1985): go back the way you came in, even through smoke,
+;; unless the voice alarm or a helper named an exit. Only when fire cuts that
+;; route off does the evacuee look for another way: the nearest safe exit.
+to step-familiar  ;; evacuee procedure
+  if can-reach-exit? instructed-exit [ step-toward-exit instructed-exit  stop ]
+  if not route-blocked? [ step-along-origin-route  stop ]
+  step-toward-exit nearest-safe-exit
 end
 
-;; The exit an evacuee would choose when calm: trained evacuees know all exits
-;; and take the nearest one, untrained evacuees take their familiar exit.
-to-report own-exit-choice  ;; evacuee reporter
-  ifelse trained? [ report nearest-safe-exit ] [ report familiar-exit ]
+;; One step back along the route this evacuee came in by: "downhill" on the
+;; map of the main entrance as it was at the start of the run, so the
+;; evacuee does not know about detours around the fire.
+;; ASSUMPTION: everybody came in through the main entrance along the shortest route.
+to step-along-origin-route  ;; evacuee procedure
+  let my-steps origin-route-steps
+  let route-patches neighbors4 with [origin-route-steps < my-steps]
+  ;; the route ahead burns (or I am off the route): from now on look for another way
+  if my-steps = no-route or not any? route-patches with [walkable?] [
+    set route-blocked? true
+    step-toward-exit nearest-safe-exit
+    stop
+  ]
+  let diagonal-patches neighbors with [free? and origin-route-steps = my-steps - 2 and not corner-cut? myself]
+  if any? diagonal-patches [ step-to one-of diagonal-patches  stop ]
+  let free-route-patches route-patches with [free?]
+  if any? free-route-patches [ step-to one-of free-route-patches ]   ;; otherwise someone is in the way: wait
+end
+
+;; Following one's own plan: trained evacuees know all exits and take the
+;; nearest one, untrained evacuees go back the way they came in.
+to step-own-way  ;; evacuee procedure
+  ifelse trained? [ step-toward-exit nearest-safe-exit ] [ step-familiar ]
 end
 
 ;; Follower: follow a helper in sight (go where the helper sends people),
@@ -415,9 +436,9 @@ to step-follower  ;; evacuee procedure
   ifelse any? people-moving [
     let old-patch patch-here
     step-in-direction average-heading-of people-moving
-    if patch-here = old-patch [ step-toward-exit own-exit-choice ]   ;; blocked: use own exit choice
+    if patch-here = old-patch [ step-own-way ]   ;; blocked: follow own plan
   ][
-    step-toward-exit own-exit-choice
+    step-own-way
   ]
 end
 
