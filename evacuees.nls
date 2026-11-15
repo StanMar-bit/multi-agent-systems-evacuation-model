@@ -11,11 +11,15 @@
 ;;   3. After the delay it starts moving. Every tick its arousal level A
 ;;      (0 = calm, 1 = maximum) selects one of four cognitive states:
 ;;        rational  (green)   A < 0.40 and trained    shortest route to the nearest exit
-;;        familiar  (blue)    A < 0.40 and untrained  back to the entrance it came in through
+;;        familiar  (blue)    A < 0.40 and untrained  back along the route it came in by
 ;;        follower  (orange)  0.40 <= A < 0.75        average direction of people nearby,
 ;;                                                    or follows a helper in sight
 ;;        panic     (red)     A >= 0.75               up to 1.5x faster away from the fire,
 ;;                                                    with random noise, ignores instructions
+;;      (0.75 is the panic-threshold slider.)
+;;      Arousal rises with flames, smoke, crowding and the arousal of the
+;;      people around (emotional contagion), and drops slowly when there is no
+;;      flame or smoke in sight. So people can move between states, and panic can end.
 ;;   4. Evacuees with a companion first walk to that person (Mawson, 2005).
 ;;   5. On an exit patch the evacuee is out and is removed from the model.
 ;;      If its health reaches 0 it counts as a casualty and is removed too.
@@ -43,6 +47,7 @@ evacuees-own [
   randomness         ;; chance that a step goes in a random direction instead of the planned one
   step-budget        ;; walking distance saved up for the next step (part of a patch)
   route-blocked?     ;; true once fire has cut off the route this evacuee came in by
+  resting-arousal    ;; arousal when calm (the starting arousal); calming down never goes below it
   panic-speed-factor ;; how much faster this evacuee walks in panic (1 to 1.5)
 ]
 
@@ -66,6 +71,10 @@ globals [
   fire-damage               ;; health lost per second on a burning patch
   smoke-damage              ;; health lost per second in the thickest smoke (smoke = 1)
   smoke-speed-loss          ;; part of the walking speed lost in the thickest smoke (smoke = 1)
+  crowd-arousal-gain        ;; arousal gained per second while squeezed in a crowd
+  crowd-size                ;; number of people on the 8 patches around that counts as a crowd
+  contagion-rate            ;; part of the difference with the arousal of the people in sight taken over per second
+  arousal-decay             ;; arousal lost per second when no flames or smoke are in sight
 
   ;; ---- results ---------------------------------------------------------------
   evacuated-count           ;; number of evacuees that got out
@@ -99,6 +108,10 @@ to set-evacuee-parameters
   set fire-damage 50                 ;; ASSUMPTION: two seconds in the fire is deadly
   set smoke-damage 2                 ;; ASSUMPTION: 50 seconds in the thickest smoke is deadly
   set smoke-speed-loss 0.5           ;; ASSUMPTION: people walk about half as fast in thick smoke (Jin, 1978; Fridolf et al., 2013)
+  set crowd-arousal-gain 0.005       ;; ASSUMPTION: being squeezed in a crowd makes people nervous (Helbing et al., 2000)
+  set crowd-size 5                   ;; ASSUMPTION: 5 or more people on the 8 patches around me
+  set contagion-rate 0.05            ;; ASSUMPTION: emotional contagion (Bosse et al., 2013): 5% of the difference per second
+  set arousal-decay 0.005            ;; ASSUMPTION: calming down from panic (0.75) to calm (0.40) takes about 70 s of walking
 end
 
 to setup-evacuees
@@ -137,7 +150,10 @@ to setup-evacuees
   ;; exactly the chosen proportion of evacuees is trained (Table 1: 0, 0.5 or 1)
   ask n-of round (proportion-trained * count evacuees) evacuees [ set trained? true ]
 
-  ask evacuees [ set agent-arousal starting-arousal ]
+  ask evacuees [
+    set agent-arousal starting-arousal
+    set resting-arousal agent-arousal
+  ]
   pair-up-companions
   ask evacuees [ update-color ]
 end
@@ -229,9 +245,24 @@ to perceive-and-decide  ;; evacuee procedure
     become-aware self-noticed-mean-delay
   ]
 
-  ;; --- 3. Flames raise arousal more than smoke (Deng et al., 2022).
+  ;; --- 3. Arousal.
+  ;;        Flames raise arousal more than smoke (Deng et al., 2022).
   if sees-flames? [ raise-arousal flame-arousal-gain ]
   if in-smoke? [ raise-arousal smoke-arousal-gain ]
+  ;;        Being squeezed in a crowd makes people nervous.
+  if moving? and crowded? [ raise-arousal crowd-arousal-gain ]
+  ;;        Emotional contagion: arousal moves toward that of the aware people in sight.
+  let others-in-sight other evacuees in-radius sight with [aware?]
+  if any? others-in-sight [
+    set agent-arousal agent-arousal + contagion-rate * (mean [agent-arousal] of others-in-sight - agent-arousal)
+  ]
+  ;;        People who walk with no flames or smoke in sight and are not
+  ;;        squeezed in a crowd slowly calm down, back to their resting arousal.
+  ;;        ASSUMPTION: while waiting (pre-movement) people do not calm down:
+  ;;        they still do not know what is going on.
+  if moving? and not sees-flames? and not in-smoke? and not crowded? [
+    set agent-arousal max list resting-arousal (agent-arousal - arousal-decay)
+  ]
 
   ;; --- 4. Count down the pre-movement delay.
   ;;        ASSUMPTION: nobody keeps waiting with flames right next to them.
@@ -253,6 +284,11 @@ end
 ;; How far this evacuee can see: Table 1 vision-radius (10 m), less in smoke.
 to-report vision  ;; evacuee reporter
   report max list 1 (vision-radius * (1 - smoke))
+end
+
+;; True when 'crowd-size' or more people stand on the 8 patches around me.
+to-report crowded?  ;; evacuee reporter
+  report count evacuees-on neighbors >= crowd-size
 end
 
 ;; Arousal goes up. Proposal: trained evacuees gain arousal at a lower rate.
