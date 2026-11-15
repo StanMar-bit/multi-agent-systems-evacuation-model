@@ -7,7 +7,7 @@
 
 patches-own [
   object        ;; "floor" or "wall" or "door" or "intermediate-door" or "desk" or "closet" or "tree"
-  blocked?      ;; true if wall, false if walkable floor/door opening
+  blocked?      ;; true if agents cannot walk here (wall or desk), false for floor and door openings
   reachable?    ;; true if this patch is connected to the building interior (set by compute-reachable-area)
   inflammatory? ;; true if this patch can burn (desk, doors, ...)
 ]
@@ -202,6 +202,7 @@ end
 
 to mark-as-desk
   set object "desk"
+  set blocked? true      ;; desks are furniture: people walk around them, not over them
   set inflammatory? true
   set pcolor brown
 end
