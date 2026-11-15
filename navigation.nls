@@ -59,9 +59,10 @@ to-report free?
 end
 
 ;; A patch where an evacuee or helper can be placed at the start:
-;; an empty floor patch inside the building (reachable? comes from environment.nls).
+;; an empty floor patch inside the building. reachable? (environment file) is
+;; also true outside, behind the exit doors, so indoor? (fire.nls) is needed too.
 to-report start-patch?
-  report object = "floor" and reachable? and not fire? and not any? turtles-here
+  report object = "floor" and reachable? and indoor? and not fire? and not any? turtles-here
 end
 
 
