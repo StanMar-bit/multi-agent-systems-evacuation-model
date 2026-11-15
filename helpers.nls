@@ -1,6 +1,10 @@
 ;; ============================================================================
 ;; HELPERS
 ;;
+;; Helper agents that guide evacuees to an exit also appear in the
+;; NetLogoFireEvacuation model (Kyritsi & Chadwick, 2017; vocal and flocking
+;; helpers). No code was taken from that model.
+;;
 ;; Built from the proposal ("Helper agents"). Helpers assist evacuees, with the
 ;; main purpose of minimizing casualties. Each helper has:
 ;;   - a movement speed           (inherited turtles-own variable speed)

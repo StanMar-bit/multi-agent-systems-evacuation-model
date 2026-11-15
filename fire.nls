@@ -216,7 +216,7 @@ to fill-room [number]  ;; patch procedure
 end
 
 ;; The fire power a room needs to flash over, with Thomas' formula
-;; (Walton and Thomas, SFPE Handbook):
+;; (Thomas, 1981):
 ;;   power (kW) = 7.8 x surface area of the room (m2)
 ;;              + 378 x door area (m2) x square root of the door height (m)
 ;; The surface area is the floor, the ceiling and the walls. A big room loses
@@ -254,6 +254,10 @@ to spread-fire
   ]
 end
 
+;; The basic rule "burning patches set nearby fuel on fire with some chance"
+;; is the classic rule of the NetLogo Fire model (Wilensky, 1997) and Fire
+;; Simple Extension 1 (Wilensky, 2006). Growth, flashover, wall failure and
+;; the smoke are our own.
 to grow-and-spread-fire
   ;; 1. Every burning patch grows stronger, and burns out when its fuel is used up.
   ask patches with [fire?] [

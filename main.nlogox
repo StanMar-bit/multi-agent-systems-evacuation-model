@@ -122,39 +122,85 @@ end]]></code>
   </widgets>
   <info>## WHAT IS IT?
 
-(a general understanding of what the model is trying to show or explain)
+An agent-based model of the evacuation of the ground floor (level 0) of the Cube building at Tilburg University during a fire. It asks: *how do cognitive decision-making strategies under varying arousal levels affect reaction times and overall evacuation efficiency?*
+
+Evacuees have an arousal level A (0 = calm, 1 = maximum) that selects one of four cognitive states: **rational**, **familiar**, **follower** or **panic**. Helpers guide evacuees, and an alarm (none, slow whoop or voice) makes people aware. A fire with smoke grows from one desk and can flash over a whole room.
 
 ## HOW IT WORKS
 
-(what rules the agents use to create the overall behavior of the model)
+Scale: 1 patch = 1 m, 1 tick = 1 s. Each tick: (1) fire and smoke spread, (2) smoke detectors and alarm, (3) evacuees perceive and update arousal and state, (4) helpers instruct, (5) everybody moves (at most one person per patch; whoever is closest to an exit moves first), (6) health and counts are updated. A run stops when nobody is left inside or after max-duration ticks.
+
+**Fire (fire.nls).** Only fuel burns (desks, doors). A burning patch grows to full strength in 2 minutes and burns for 30 minutes, and can set fuel up to 2 m away on fire, never through a wall. Walls and doors split the building into rooms. When the fire power in a room reaches the flashover power of that room (Thomas' formula from its surface and door area), the whole room burns and flames come out of its doorways. Rooms over 500 m2 (the central hall) never flash over. A wall next to a fully burning patch fails after wall-fire-resistance minutes.
+
+**Smoke (fire.nls).** Burning patches make smoke. Smoke flows away from the fire (1 m/s near the fire, slower further away as it cools), mixes with neighbouring patches, piles up in dead ends, never passes walls, and escapes through the exit doors. Smoke cuts vision, slows walking (up to half speed) and damages health.
+
+**Alarm (alarm-and-fire.nls).** A smoke detector every 7 m sets off the alarm when it measures smoke. With "none", evacuees only notice the fire themselves (flames or smoke they see, or people running).
+
+**Evacuees (evacuees.nls).** Unaware (grey) -&gt; aware and waiting a log-normal pre-movement delay (yellow; mean 60 s slow whoop, 30 s voice) -&gt; moving. While moving, arousal selects the state:
+
+- rational (green), A &lt; 0.40 and trained: shortest route to the nearest exit;
+- familiar (blue), A &lt; 0.40 and untrained: back along the route it came in by (remembered from the start, even through smoke) until fire blocks it;
+- follower (orange), 0.40 &lt;= A &lt; panic-threshold: walks with the people around who seem to know where they go, or follows a helper;
+- panic (red), A &gt;= panic-threshold: wants out and runs up to 1.5x faster, but ignores instructions, has tunnel vision, makes wrong turns, gets stuck pushing in crowds and runs away from fire it sees.
+
+Arousal rises with flames (most), smoke, crowding and the arousal of the people around (emotional contagion), and drops slowly when walking with no threat in sight. Trained evacuees start calmer and gain arousal at half the rate. Evacuees with a companion first walk to that person.
+
+**Helpers (helpers.nls).** Start working when the alarm sounds or when they notice the fire. They walk to evacuees who need help, send them to the nearest safe exit, calm them and make them walk faster and straighter. Panicking evacuees ignore them.
+
+**Navigation (navigation.nls).** Distance maps (flood fills) give every patch its number of steps to each exit, around walls and fire. Agents step to a neighbour with a lower number, diagonally if no wall corner is cut.
 
 ## HOW TO USE IT
 
-(how to use the model, including a description of each of the items in the Interface tab)
+Press **setup**, then **go**. Left column: people, alarm and run length. Second column: helpers and fire. The monitors show the people inside, evacuated, casualties, mean reaction time, evacuation time and when the alarm went off; the plot shows how many people are in each cognitive state.
+
+- **cognitive-strategy**: "arousal-based" (normal), or force everybody into one state (Experiment 2).
+- **fire-location** and **fire-seed**: where the fire starts, and the fire's own random numbers. With the same fire-seed, every run gets exactly the same fire and smoke, whatever the people do (0 = a new fire every run).
+- **wall-fire-resistance**: minutes before a wall next to the fire fails (30-60 min: fire-rated walls; lower: light partitions).
+
+The BehaviorSpace experiments "experiment-1", "experiment-2" and "sensitivity" reproduce the experiments of the report.
 
 ## THINGS TO NOTICE
 
-(suggested things for the user to notice while running the model)
+How the smoke leaves the burning room and fills nearby rooms first; how queues form at the exits; how panicking evacuees clog doorways; how followers drift with the crowd; how the voice alarm sends familiar evacuees to a closer exit.
 
 ## THINGS TO TRY
 
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+Compare the alarm types, add helpers, raise proportion-trained, move the fire close to the exits ("auditorium"), lower wall-fire-resistance, or force all evacuees into one cognitive state.
 
 ## EXTENDING THE MODEL
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+Several floors and stairs; doors that can be closed; a smoke layer under the ceiling instead of one value per patch; arousal that also depends on personality or group membership; helpers that coordinate.
 
 ## NETLOGO FEATURES
 
-(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
+with-local-randomness and random-seed give the fire its own random numbers, so the fire is the same across runs. Flood fills over patch-sets make the exit, help, fire-distance and room maps. BehaviorSpace runs the experiments.
 
 ## RELATED MODELS
 
-(models in the NetLogo Models Library and elsewhere which are of related interest)
+- 198-School / Disaster-Evacuation-Process (Ionescu, Nica &amp; Chiriță, 2021): school evacuation with a per-patch distance-to-exit field; our first floor plan and the object variable came from this model.
+- NetLogoFireEvacuation (Kyritsi &amp; Chadwick, 2017): fire evacuation with smoke, health and helper agents.
+- Fire (Wilensky, 1997) and Fire Simple Extension 1 (Wilensky, 2006): fire spreading from cell to cell.
 
 ## CREDITS AND REFERENCES
 
-(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
+Group 3, Multi-Agent Systems, Tilburg University (2025-2026): David Karapetian, Lucas Snijder, Luuk Walthaus, Sofia Leonor Dobreva Faria, Stan Marcusse. Written in NetLogo 7.0.4 (Wilensky, 1999). The first version of the floor plan (no longer used) was adapted from the 198-School model; the current model is our own code. Generative AI (Claude) was used to help write and test parts of the code (see the report, Appendix 3).
+
+- Alpert, R. L. (1972). Calculation of response time of ceiling-mounted fire detectors. *Fire Technology, 8*(3), 181-195.
+- Bosse, T., Hoogendoorn, M., Klein, M. C. A., Treur, J., van der Wal, C. N., &amp; van Wissen, A. (2013). Modelling collective decision making in groups and crowds. *Autonomous Agents and Multi-Agent Systems, 27*(1), 52-84.
+- Deng, K., et al. (2022). Experimental study on panic during simulated fire evacuation using psycho- and physiological metrics. *IJERPH, 19*(11), 6905.
+- Easterbrook, J. A. (1959). The effect of emotion on cue utilization and the organization of behavior. *Psychological Review, 66*(3), 183-201.
+- Fridolf, K., Ronchi, E., Nilsson, D., &amp; Frantzich, H. (2013). Movement speed and exit choice in smoke-filled rail tunnels. *Fire Safety Journal, 59*, 8-21.
+- Helbing, D., Farkas, I., &amp; Vicsek, T. (2000). Simulating dynamical features of escape panic. *Nature, 407*, 487-490.
+- Ionescu, S., Nica, I., &amp; Chiriță, N. (2021). Cybernetics approach using agent-based modeling in the process of evacuating educational institutions in case of disasters. *Sustainability, 13*(18), 10277. Model: https://github.com/qfanee/Disaster-Evacuation-Process
+- Jin, T. (1978). Visibility through fire smoke. *Journal of Fire and Flammability, 9*, 135-155.
+- Kyritsi, I., &amp; Chadwick, R. (2017). NetLogoFireEvacuation [NetLogo model]. https://github.com/CollectiveIntelligence/NetLogoFireEvacuation
+- Mawson, A. R. (2005). Understanding mass panic and other collective responses to threat and disaster. *Psychiatry, 68*(2), 95-113.
+- Proulx, G., &amp; Sime, J. D. (1991). To prevent "panic" in an underground emergency: Why not tell people the truth? *Fire Safety Science, 3*, 843-852.
+- Sime, J. D. (1985). Movement toward the familiar. *Environment and Behavior, 17*(6), 697-724.
+- Thomas, P. H. (1981). Testing products and materials for their contribution to flashover in rooms. *Fire and Materials, 5*(3), 103-111.
+- Wilensky, U. (1997). NetLogo Fire model. http://ccl.northwestern.edu/netlogo/models/Fire
+- Wilensky, U. (1999). NetLogo. http://ccl.northwestern.edu/netlogo/
+- Wilensky, U. (2006). NetLogo Fire Simple Extension 1 model. Center for Connected Learning and Computer-Based Modeling, Northwestern University.
 </info>
   <turtleShapes>
     <shape name="default" rotatable="true" editableColorIndex="0">

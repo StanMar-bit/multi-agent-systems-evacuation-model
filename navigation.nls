@@ -105,6 +105,11 @@ to find-exits
   ]
 end
 
+;; Idea similar to setup-energy / compute-energy in the 198-School model
+;; (Ionescu, Nica & Chirita, 2021): every patch stores its distance to an exit
+;; and agents step to a neighbour with a lower value. This implementation (one
+;; breadth-first map per exit, made again when the fire changes) is our own.
+;;
 ;; Fill exit-distances on every patch with a "flood fill" from each exit:
 ;; the exit patches get 0, their walkable neighbours 1, the neighbours of
 ;; those 2, and so on. Patches that cannot reach the exit keep no-route.

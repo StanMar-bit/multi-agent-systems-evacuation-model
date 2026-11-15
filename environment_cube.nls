@@ -5,6 +5,10 @@
 ;; The middle column is x = 0, so left and right are exact mirrors.
 ;; =====================================================================
 
+;; The object variable and its values ("floor", "wall", green exit "door",
+;; other doors "intermediate-door") follow the 198-School model (Ionescu, Nica
+;; & Chirita, 2021; https://github.com/qfanee/Disaster-Evacuation-Process).
+;; The cube floor plan and all procedures in this file are our own.
 patches-own [
   object        ;; "floor" or "wall" or "door" or "intermediate-door" or "desk" or "closet" or "tree"
   blocked?      ;; true if agents cannot walk here (wall or desk), false for floor and door openings
