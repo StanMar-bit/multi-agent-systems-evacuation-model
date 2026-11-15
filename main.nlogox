@@ -71,6 +71,14 @@ end]]></code>
       <choice type="string" value="all follower"></choice>
       <choice type="string" value="all panic"></choice>
     </chooser>
+    <chooser x="15" y="865" height="60" variable="fire-location" current="0" width="250" display="fire-location">
+      <choice type="string" value="random desk"></choice>
+      <choice type="string" value="north-west office"></choice>
+      <choice type="string" value="north classroom"></choice>
+      <choice type="string" value="auditorium"></choice>
+    </chooser>
+    <slider x="15" step="1" y="930" max="1000" width="250" display="fire-seed" height="50" min="0" direction="Horizontal" default="0.0" variable="fire-seed"></slider>
+    <note x="15" y="985" backgroundDark="0" fontSize="11" width="250" markdown="false" height="35" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">fire-seed 0: a different fire every run. Any other value: the same fire every run.</note>
     <slider x="15" step="1" y="640" max="8" width="250" display="number-of-helpers" height="50" min="0" direction="Horizontal" default="0.0" variable="number-of-helpers"></slider>
     <slider x="15" step="1" y="695" max="10" width="250" display="helper-range" height="50" min="1" direction="Horizontal" default="5.0" variable="helper-range" units="m"></slider>
     <slider x="15" step="1" y="750" max="10" width="250" display="helper-capacity" height="50" min="1" direction="Horizontal" default="3.0" variable="helper-capacity"></slider>
@@ -80,6 +88,7 @@ end]]></code>
     <monitor x="578" precision="0" y="455" height="60" fontSize="11" width="100" display="casualties">casualties</monitor>
     <monitor x="683" precision="1" y="455" height="60" fontSize="11" width="160" display="mean reaction time (s)">mean-reaction-time</monitor>
     <monitor x="848" precision="0" y="455" height="60" fontSize="11" width="160" display="evacuation time (s)">total-evacuation-time</monitor>
+    <monitor x="1013" precision="0" y="455" height="60" fontSize="11" width="110" display="alarm at (s)">detection-delay</monitor>
     <plot x="368" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="evacuees" y="525" xMin="0.0" height="330" legend="true" xMax="100.0" yMin="0.0" width="850" xAxis="time (s)" display="Cognitive states">
       <setup></setup>
       <update></update>

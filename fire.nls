@@ -23,6 +23,14 @@
 ;;     layer under the ceiling separately.
 ;;   - The darker the grey of a floor patch, the thicker the smoke.
 ;;
+;; The same fire in every run:
+;;   - fire-location (interface) picks the desk where the fire starts.
+;;   - The fire uses its own random numbers, set by fire-seed (interface).
+;;     The people do not change the fire, so two runs with the same fire-seed
+;;     and fire-location get exactly the same fire and smoke, whatever the
+;;     evacuees do. That makes it fair to compare cognitive strategies, alarms
+;;     and helpers. With fire-seed 0 every run gets a different fire.
+;;
 ;; The agents read these patch variables:
 ;;   fire?   true while the patch burns (agents cannot walk on it)
 ;;   smoke   smoke density from 0 (clean air) to 1 (thick smoke)
@@ -53,6 +61,7 @@ globals [
   smoke-spread-steps  ;; how many times per second the smoke spreads
 
   smoke-patches       ;; all patches smoke can be on: inside the building and not a wall
+  fire-dice           ;; the seed for the fire's own random numbers (see "The same fire in every run")
 ]
 
 
@@ -85,7 +94,23 @@ to setup-fire
     set smoke 0
   ]
   setup-smoke-patches
-  ask one-of patches with [object = "desk"] [ catch-fire ]
+
+  ifelse fire-seed = 0
+    [ set fire-dice random 1000000 ]   ;; a different fire every run
+    [ set fire-dice fire-seed ]        ;; the same fire every run
+  with-local-randomness [
+    random-seed fire-dice
+    ask fire-start-patch [ catch-fire ]
+  ]
+end
+
+;; The desk where the fire starts, chosen with the fire-location chooser.
+to-report fire-start-patch
+  let desks patches with [object = "desk"]
+  if fire-location = "north-west office" [ report min-one-of desks [distancexy -44 26] ]
+  if fire-location = "north classroom"   [ report min-one-of desks [distancexy -33 34] ]
+  if fire-location = "auditorium"        [ report min-one-of desks [distancexy 0 -25] ]
+  report one-of desks                    ;; "random desk"
 end
 
 ;; Find the patches smoke can be on. Outside the building is everything that
@@ -116,6 +141,14 @@ end
 ;; ---------------------------------------------------------------------------
 
 to spread-fire
+  ;; The fire's own random numbers: the same fire-dice and tick give the same fire.
+  with-local-randomness [
+    random-seed fire-dice + ticks
+    grow-and-spread-fire
+  ]
+end
+
+to grow-and-spread-fire
   ;; 1. Every burning patch grows stronger, and burns out when its fuel is used up.
   ask patches with [fire?] [
     set fire-time fire-time + 1
