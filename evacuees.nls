@@ -22,7 +22,11 @@
 ;;      flame or smoke in sight. So people can move between states, and panic can end.
 ;;   4. Evacuees with a companion first walk to that person (Mawson, 2005).
 ;;   5. On an exit patch the evacuee is out and is removed from the model.
-;;      If its health reaches 0 it counts as a casualty and is removed too.
+;;   6. Smoke builds up a toxic dose (mostly carbon monoxide). The dose makes
+;;      the evacuee confused (wrong turns) and weak (slower); at a dose of 1 it
+;;      collapses (INCAPACITATED, black) and can no longer move, at a dose of
+;;      lethal-dose it dies. On a burning patch it dies within seconds (burns).
+;;      Dead evacuees count as casualties and are removed.
 ;;
 ;; Variables that evacuees inherit from turtles-own in agents.nls and that are reused here:
 ;;   speed            walking speed in m/s (= patches per tick)
@@ -34,7 +38,9 @@ breed [ evacuees evacuee ]
 
 evacuees-own [
   trained?           ;; true if this evacuee had evacuation training
-  health             ;; 100 = healthy, 0 or less = casualty
+  health             ;; 100 = healthy, 0 or less = dead from burns
+  toxic-dose         ;; dose of toxic smoke gases taken in (Fractional Effective Dose): 1 = collapses
+  incapacitated?     ;; true once the toxic dose made this evacuee collapse
   origin-entrance    ;; number of the exit this person came in through (the main entrance)
   companion          ;; the person this evacuee wants to find first, or nobody
   companion-found?   ;; true once next to the companion, or after giving up the search
@@ -69,7 +75,10 @@ globals [
   base-randomness           ;; normal chance of a random step
   companion-search-time     ;; seconds an evacuee looks for its companion before going alone
   fire-damage               ;; health lost per second on a burning patch
-  smoke-damage              ;; health lost per second in the thickest smoke (smoke = 1)
+  smoke-dose-rate           ;; toxic dose taken in per second in the thickest smoke (smoke = 1)
+  lethal-dose               ;; toxic dose at which an evacuee dies
+  toxic-confusion           ;; chance of a confused (wrong) step at a toxic dose of 1
+  toxic-weakness            ;; part of the walking speed lost at a toxic dose of 1
   smoke-speed-loss          ;; part of the walking speed lost in the thickest smoke (smoke = 1)
   crowd-arousal-gain        ;; arousal gained per second while squeezed in a crowd
   crowd-size                ;; number of people on the 8 patches around that counts as a crowd
@@ -81,7 +90,7 @@ globals [
 
   ;; ---- results ---------------------------------------------------------------
   evacuated-count           ;; number of evacuees that got out
-  casualties                ;; number of evacuees whose health reached 0
+  casualties                ;; number of evacuees who died (burns or toxic smoke)
   reaction-times            ;; list with the reaction time of every evacuee that started moving
   exit-times                ;; list with the second in which each evacuee got out, in order
   last-exit-time            ;; second in which the last evacuee got out
@@ -110,7 +119,13 @@ to set-evacuee-parameters
   set base-randomness 0.1            ;; ASSUMPTION: 1 in 10 steps goes in a random direction
   set companion-search-time 30       ;; ASSUMPTION
   set fire-damage 50                 ;; ASSUMPTION: two seconds in the fire is deadly
-  set smoke-damage 2                 ;; ASSUMPTION: 50 seconds in the thickest smoke is deadly
+  ;; Toxic smoke works as a dose that builds up over time: the Fractional Effective
+  ;; Dose (FED; Purser, 2016; ISO 13571). Carbon monoxide first impairs judgment
+  ;; and makes people weak, then they collapse (FED = 1), and later they die.
+  set smoke-dose-rate 1 / 90         ;; ASSUMPTION: 90 s in the thickest smoke (smoke = 1) gives FED = 1, collapse
+  set lethal-dose 2                  ;; ASSUMPTION: death at about twice the dose that makes people collapse
+  set toxic-confusion 0.5            ;; ASSUMPTION: at FED = 1 half of the steps are confused (impaired judgment)
+  set toxic-weakness 0.3             ;; ASSUMPTION: at FED = 1 people walk 30% slower (dizziness, weakness)
   set smoke-speed-loss 0.5           ;; ASSUMPTION: people walk about half as fast in thick smoke (Jin, 1978; Fridolf et al., 2013)
   set crowd-arousal-gain 0.005       ;; ASSUMPTION: being squeezed in a crowd makes people nervous (Helbing et al., 2000)
   set crowd-size 5                   ;; ASSUMPTION: 5 or more people on the 8 patches around me
@@ -140,6 +155,8 @@ to setup-evacuees
     set trained? false                                  ;; the trained evacuees are chosen below
     set speed max list 0.5 (random-normal 1.34 0.26)    ;; Table 1: N(1.34, 0.26) m/s, at least 0.5 so nobody stands still
     set health 100
+    set toxic-dose 0
+    set incapacitated? false
     set origin-entrance main-entrance                   ;; ASSUMPTION: everybody came in through the main entrance
     set companion nobody                                ;; companions are chosen below
     set companion-found? true
@@ -242,6 +259,8 @@ to evacuees-perceive
 end
 
 to perceive-and-decide  ;; evacuee procedure
+  if incapacitated? [ stop ]   ;; collapsed: can no longer see, think or move
+
   ;; --- 1. What can I see?
   let sight vision
   let sees-flames? any? fire-in-sight sight                 ;; walls block the view
@@ -372,6 +391,7 @@ to update-color  ;; evacuee procedure
   if cognitive-state = "familiar" [ set color blue ]
   if cognitive-state = "follower" [ set color orange ]
   if cognitive-state = "panic"    [ set color red ]
+  if cognitive-state = "incapacitated" [ set color black ]
 end
 
 
@@ -409,7 +429,14 @@ to-report current-speed  ;; evacuee reporter
   let current speed
   if helped? [ set current current * helper-speed-factor ]                 ;; helpers make evacuees walk faster (ASSUMPTION: for the rest of the run)
   if cognitive-state = "panic" [ set current current * panic-speed-factor ]  ;; panic: up to 1.5x faster
-  report current * smoke-slowdown                                          ;; slower in smoke
+  set current current * (1 - toxic-weakness * min list 1 toxic-dose)        ;; weak from the toxic dose
+  report current * smoke-slowdown                                          ;; slower in smoke (poor visibility)
+end
+
+;; Chance of a confused (wrong) step because of the toxic dose: 0 without
+;; smoke, toxic-confusion at a dose of 1 (impaired judgment and problem solving).
+to-report confusion  ;; evacuee reporter
+  report toxic-confusion * min list 1 toxic-dose
 end
 
 ;; In smoke people walk slower: 1 in clean air, 1 - smoke-speed-loss in the thickest smoke.
@@ -422,8 +449,9 @@ to take-one-step  ;; evacuee procedure
   ;; panic: ignores companions and instructions, see step-panic
   if cognitive-state = "panic" [ step-panic  stop ]
 
-  ;; sometimes a step goes in a random direction (helpers make this less likely)
-  if random-float 1 < randomness [ step-randomly  stop ]
+  ;; sometimes a step goes in a random direction (helpers make this less likely,
+  ;; toxic smoke makes it more likely: confusion)
+  if random-float 1 < randomness + confusion [ step-randomly  stop ]
 
   ;; with a companion: first go to that person
   if not companion-found? and companion != nobody [ step-in-direction (towards companion)  stop ]
@@ -514,7 +542,7 @@ end
 ;; else its own way.
 to step-panic  ;; evacuee procedure
   if crowded? and random-float 1 < panic-clog-chance [ stop ]   ;; stuck pushing in the crowd
-  if random-float 1 < panic-randomness [ step-randomly  stop ]  ;; a wrong turn
+  if random-float 1 < panic-randomness + confusion [ step-randomly  stop ]  ;; a wrong turn
 
   let sight vision
   let fire-seen fire-in-sight sight
@@ -554,16 +582,26 @@ end
 ;; Schedule step (6): health
 ;; ---------------------------------------------------------------------------
 
-;; Fire and smoke damage health.
+;; Burns and toxic smoke.
 to update-evacuee-health
   ask evacuees [
-    if fire? [ set health health - fire-damage ]
-    set health health - smoke * smoke-damage
-    if health <= 0 [
+    if fire? [ set health health - fire-damage ]              ;; burns: deadly within seconds
+    set toxic-dose toxic-dose + smoke * smoke-dose-rate       ;; toxic smoke builds up a dose
+    if toxic-dose >= 1 and not incapacitated? [ collapse ]
+    if health <= 0 or toxic-dose >= lethal-dose [
       set casualties casualties + 1
       die
     ]
   ]
+end
+
+;; The evacuee collapses: it stays where it is, blocking the patch, until it
+;; dies or the run ends. ASSUMPTION: nobody carries collapsed people out.
+to collapse  ;; evacuee procedure
+  set incapacitated? true
+  set moving? false
+  set cognitive-state "incapacitated"
+  update-color
 end
 
 
@@ -574,7 +612,7 @@ end
 ;; An evacuee still needs a helper when nobody has helped it yet and it is not
 ;; panicking (panicking evacuees ignore instructions).
 to-report needs-help?  ;; evacuee reporter
-  report not helped? and cognitive-state != "panic"
+  report not helped? and cognitive-state != "panic" and not incapacitated?
 end
 
 to-report count-in-state [state]

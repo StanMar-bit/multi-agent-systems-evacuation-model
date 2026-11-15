@@ -112,6 +112,10 @@ end]]></code>
         <setup></setup>
         <update>plot count-in-state "panic"</update>
       </pen>
+      <pen interval="1.0" mode="0" display="incapacitated" color="-16777216" legend="true">
+        <setup></setup>
+        <update>plot count-in-state "incapacitated"</update>
+      </pen>
     </plot>
     <note x="10" y="10" backgroundDark="0" fontSize="12" width="250" markdown="false" height="20" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">RUN</note>
     <note x="10" y="90" backgroundDark="0" fontSize="12" width="250" markdown="false" height="20" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">PEOPLE</note>
@@ -132,7 +136,7 @@ Scale: 1 patch = 1 m, 1 tick = 1 s. Each tick: (1) fire and smoke spread, (2) sm
 
 **Fire (fire.nls).** Only fuel burns: desks, doors, and the carpet in furnished rooms, which only catches fire from burning furniture or doors (not from other carpet) and burns weakly. A burning patch grows to full strength in 2 minutes and burns for 30 minutes, and can set fuel up to 2 m away on fire, never through a wall. Walls and doors split the building into rooms. When the fire power in a room reaches the flashover power of that room (Thomas' formula from its surface and door area), the whole room burns and flames come out of its doorways. Rooms over 500 m2 (the central hall) never flash over. A wall next to a fully burning patch fails after wall-fire-resistance minutes.
 
-**Smoke (fire.nls).** Burning patches make smoke. Smoke flows away from the fire (1 m/s near the fire, slower further away as it cools), mixes with neighbouring patches, piles up in dead ends, never passes walls, and escapes through the exit doors. Smoke cuts vision, slows walking (up to half speed) and damages health.
+**Smoke (fire.nls).** Burning patches make smoke. Smoke flows away from the fire (1 m/s near the fire, slower further away as it cools), mixes with neighbouring patches, piles up in dead ends, never passes walls, and escapes through the exit doors. Smoke cuts vision and slows walking (up to half speed). It also builds up a toxic dose (mostly carbon monoxide; Fractional Effective Dose): the dose makes people confused (wrong turns) and weak, at a dose of 1 they collapse (black) and can no longer move, at a dose of 2 they die.
 
 **Alarm (alarm-and-fire.nls).** A smoke detector every 7 m sets off the alarm when it measures smoke. With "none", evacuees only notice the fire themselves (flames or smoke they see, or people running).
 
@@ -1045,6 +1049,7 @@ Group 3, Multi-Agent Systems, Tilburg University (2025-2026): David Karapetian, 
           <metric>time-until-out 0.5</metric>
           <metric>time-until-out 0.9</metric>
           <metric>casualties</metric>
+          <metric>count-in-state &quot;incapacitated&quot;</metric>
           <metric>evacuated-count</metric>
           <metric>count evacuees</metric>
           <metric>mean-reaction-time</metric>
@@ -1080,6 +1085,7 @@ Group 3, Multi-Agent Systems, Tilburg University (2025-2026): David Karapetian, 
           <metric>time-until-out 0.5</metric>
           <metric>time-until-out 0.9</metric>
           <metric>casualties</metric>
+          <metric>count-in-state &quot;incapacitated&quot;</metric>
           <metric>evacuated-count</metric>
           <metric>count evacuees</metric>
           <metric>mean-reaction-time</metric>
@@ -1115,6 +1121,7 @@ Group 3, Multi-Agent Systems, Tilburg University (2025-2026): David Karapetian, 
           <metric>time-until-out 0.5</metric>
           <metric>time-until-out 0.9</metric>
           <metric>casualties</metric>
+          <metric>count-in-state &quot;incapacitated&quot;</metric>
           <metric>evacuated-count</metric>
           <metric>count evacuees</metric>
           <metric>mean-reaction-time</metric>

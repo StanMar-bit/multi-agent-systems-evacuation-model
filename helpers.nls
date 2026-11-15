@@ -103,8 +103,8 @@ to instruct-evacuees  ;; helper procedure
   ;; the optimal exit: the nearest exit the helper can reach from where it stands
   set recommended-exit nearest-safe-exit
 
-  ;; evacuees within range who listen (panicking evacuees ignore instructions)
-  let listeners evacuees in-radius detection-radius with [cognitive-state != "panic"]
+  ;; evacuees within range who listen (panicking evacuees ignore instructions, collapsed ones cannot follow them)
+  let listeners evacuees in-radius detection-radius with [cognitive-state != "panic" and not incapacitated?]
 
   ;; help at most 'capacity' of them this tick, the most aroused ones first
   let number-to-help min list capacity (count listeners)

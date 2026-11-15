@@ -48,7 +48,10 @@ All values as used in the model (`main.nlogox` and the `.nls` files). Scale: 1 p
 | smoke-notice-level | 0.1 | ASSUMPTION |
 | companion-search-time | 30 s | ASSUMPTION |
 | fire-damage | 50 health per s on a burning patch | ASSUMPTION (2 s in the fire is deadly) |
-| smoke-damage | 2 health per s x smoke | ASSUMPTION (50 s in the thickest smoke is deadly) |
+| smoke-dose-rate | toxic dose (FED) + smoke / 90 per s: collapse after 90 s in the thickest smoke | ASSUMPTION; Fractional Effective Dose (Purser, 2016; ISO 13571) |
+| lethal-dose | death at FED 2 (collapse at FED 1) | ASSUMPTION; about twice the incapacitating dose |
+| toxic-confusion | up to 0.5 of the steps confused at FED 1 | ASSUMPTION; carbon monoxide impairs judgment |
+| toxic-weakness | up to 30% slower at FED 1 | ASSUMPTION; dizziness and weakness |
 | smoke-speed-loss | up to 50% slower in the thickest smoke | Jin (1978); Fridolf et al. (2013) |
 
 ## Helpers (`set-helper-parameters`, helpers.nls)
