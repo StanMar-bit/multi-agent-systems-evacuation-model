@@ -71,7 +71,7 @@ globals [
 
 to set-fire-parameters
   set fire-growth-time 120     ;; ASSUMPTION: a desk fire needs about 2 minutes to grow to full strength
-  set fire-burn-time 600       ;; ASSUMPTION: a desk burns for about 10 minutes
+  set fire-burn-time 1800      ;; ASSUMPTION: a patch burns for about 30 minutes (office fire load ~420 MJ/m2 burning at ~250 kW/m2, Eurocode EN 1991-1-2)
   set fire-reach 2             ;; ASSUMPTION: a burning desk can set fuel up to 2 m away on fire
   set desk-catch-chance 0.02   ;; ASSUMPTION: a desk next to a fully burning desk catches fire after about a minute
   set door-catch-chance 0.002  ;; ASSUMPTION: a door resists fire ten times longer than a desk
