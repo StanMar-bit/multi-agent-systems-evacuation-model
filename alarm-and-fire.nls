@@ -1,14 +1,10 @@
 ;; ============================================================================
-;; ALARM AND FIRE INTERFACE
+;; ALARM
 ;;
 ;; The two things from the environment that the agents react to:
 ;;
-;;   1. Fire and smoke. The fire model itself will be built by the environment
-;;      team and does not exist yet. The agents only READ the two patch
-;;      variables below, so the fire model only has to set them every tick.
-;;      Until then nothing burns, so everything that depends on fire (noticing
-;;      the fire without an alarm, arousal from flames and smoke, panicking
-;;      evacuees fleeing from the fire, health loss) stays inactive.
+;;   1. Fire and smoke. These are made in fire.nls. The agents only read the
+;;      patch variables fire? and smoke.
 ;;
 ;;   2. The alarm (proposal, "Alarm Types"), chosen with the alarm-type chooser:
 ;;        "none"        evacuees only notice the fire themselves
@@ -17,30 +13,16 @@
 ;;      What the alarm does to an evacuee is in hear-alarm (evacuees.nls).
 ;; ============================================================================
 
-patches-own [
-  fire?     ;; true when this patch is burning              (to be set by the fire model)
-  smoke     ;; smoke density from 0 (no smoke) to 1 (thick)  (to be set by the fire model)
-  fire-time
-  burned?
-]
-
 globals [
   alarm-sounding?   ;; true from the moment the alarm goes off
   detection-delay   ;; seconds between the start of the run and the alarm
 ]
 
 ;; Called once from setup.
-to setup-alarm-and-fire
-  ask patches [
-    set fire? false   ;; nothing burns at the start (the fire model will change this)
-    set smoke 0
-    set fire-time 0
-    set burned? false
-  ]
+to setup-alarm
   set alarm-sounding? false
   ;; ASSUMPTION: the run starts at the moment the fire is detected, so the alarm
-  ;; goes off in the first tick. The environment team can replace this with a
-  ;; smoke detector once the fire model exists.
+  ;; goes off in the first tick.
   set detection-delay 0
 end
 

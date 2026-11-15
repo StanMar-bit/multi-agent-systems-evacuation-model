@@ -31,7 +31,7 @@ to-report no-route
   report 999999
 end
 
-;; Called once from setup (after setup-environment and setup-alarm-and-fire).
+;; Called once from setup (after setup-environment and setup-fire).
 to setup-navigation
   find-exits
   make-exit-distance-maps

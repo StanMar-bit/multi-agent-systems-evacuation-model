@@ -5,8 +5,8 @@
   "agents.nls"
   ;;"environment.nls"
   "environment_cube.nls"
-  "alarm-and-fire.nls"   ;; fire and smoke patch variables (interface for the fire model) and the alarm
-  "fire.nls"
+  "alarm-and-fire.nls"   ;; the alarm
+  "fire.nls"             ;; fire
   "navigation.nls"       ;; exits, distance maps and taking steps
   "evacuees.nls"         ;; evacuee agents
   "helpers.nls"          ;; helper agents
@@ -16,8 +16,8 @@ to setup
   clear-all
   setup-environment
   compute-reachable-area
-  setup-alarm-and-fire   ;; nothing burns yet; the alarm is off
-  setup-fire
+  setup-alarm            ;; the alarm is off
+  setup-fire             ;; one desk catches fire
   setup-navigation       ;; find the exits and make the distance maps
   setup-evacuees
   setup-helpers
@@ -34,8 +34,7 @@ to go
   if not any? evacuees or ticks >= max-duration [ stop ]
 
   ;; The schedule from the proposal. One tick is one second.
-  ;; (1) fire and smoke spread: done by the fire model of the environment team (not built yet)
-  spread-fire
+  spread-fire                  ;; (1) fire spreads
   update-alarm                 ;; (2) detection and alarm
   update-exit-distance-maps    ;;     routes change when the fire blocks patches
   evacuees-perceive            ;; (3) evacuees perceive and update arousal and state

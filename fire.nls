@@ -1,72 +1,137 @@
-
 ;; ============================================================================
-;; FIRE MODEL
+;; FIRE
+;;
+;; Scale: 1 patch = 1 m and 1 tick = 1 s, as in the rest of the model.
+;;
+;; How the fire works:
+;;   - Only fuel burns: desks and doors (patches with inflammatory? = true,
+;;     set in the environment file). Floors and walls never burn.
+;;   - A burning patch starts small and grows to full strength in
+;;     fire-growth-time seconds. After fire-burn-time seconds its fuel is used
+;;     up and it is burned out (grey).
+;;   - Every second, a burning patch can set fuel up to fire-reach metres away
+;;     on fire (heat radiation), but never through a wall. The stronger the
+;;     fire, the bigger the chance. Doors resist fire much longer than desks.
+;;
+;; The agents read these patch variables:
+;;   fire?   true while the patch burns (agents cannot walk on it)
+;;   smoke   smoke density from 0 (clean air) to 1 (thick smoke)
 ;; ============================================================================
 
-to setup-fire
-  ask patches [
-    set fire? false
-    set smoke 0
-    set fire-time 0
-    set burned? false
-  ]
+patches-own [
+  fire?           ;; true while this patch burns
+  fire-strength   ;; how strong the fire on this patch is, from 0 (just started) to 1 (full)
+  fire-time       ;; seconds this patch has been burning
+  burned?         ;; true once the fuel on this patch is used up
+  smoke           ;; smoke density from 0 (clean air) to 1 (thick smoke)
+]
 
-  let start-patches patches with [
-    not blocked? and
-    (object = "desk" or object = "closet") and
-    reachable?
-  ]
+globals [
+  ;; ---- values used by the fire (ASSUMPTION: set in set-fire-parameters) ----
+  fire-growth-time    ;; seconds a burning patch needs to reach full strength
+  fire-burn-time      ;; seconds a patch burns before its fuel is used up
+  fire-reach          ;; distance (m) over which a burning patch can set fuel on fire
+  desk-catch-chance   ;; chance per second that a desk catches fire from one fully burning patch nearby
+  door-catch-chance   ;; the same for a door
+]
 
-  if not any? start-patches [
-    set start-patches patches with [not blocked? and inflammatory? and reachable?]
-  ]
 
-  ask one-of start-patches [
-    set fire? true
-    set smoke 1.0
-    set fire-time 0
-    set pcolor red
-  ]
+;; ---------------------------------------------------------------------------
+;; Setup
+;; ---------------------------------------------------------------------------
+
+to set-fire-parameters
+  set fire-growth-time 120     ;; ASSUMPTION: a desk fire needs about 2 minutes to grow to full strength
+  set fire-burn-time 600       ;; ASSUMPTION: a desk burns for about 10 minutes
+  set fire-reach 2             ;; ASSUMPTION: a burning desk can set fuel up to 2 m away on fire
+  set desk-catch-chance 0.02   ;; ASSUMPTION: a desk next to a fully burning desk catches fire after about a minute
+  set door-catch-chance 0.002  ;; ASSUMPTION: a door resists fire ten times longer than a desk
 end
 
-to spread-fire
+;; Called once from setup: nothing burns, then one desk catches fire.
+to setup-fire
+  set-fire-parameters
+  ask patches [
+    set fire? false
+    set fire-strength 0
+    set fire-time 0
+    set burned? false
+    set smoke 0
+  ]
+  ask one-of patches with [object = "desk"] [ catch-fire ]
+end
 
-  ;; Spread fire to neighboring patches
-  ask patches with [fire? and smoke >= 1.0] [
-    ask neighbors with [not blocked? and not fire? and not burned?] [
-      if-else inflammatory? [
-        if random-float 1.0 < 0.85 [
-          set fire? true
-          set smoke 0.4
-          set fire-time 0
-          set pcolor red
-        ]
-      ] [
-        if random-float 1.0 < 0.05 [
-          set fire? true
-          set smoke 0.2
-          set fire-time 0
-          set pcolor orange
-        ]
-      ]
+
+;; ---------------------------------------------------------------------------
+;; Schedule step (1): the fire grows and spreads
+;; ---------------------------------------------------------------------------
+
+to spread-fire
+  ;; 1. Every burning patch grows stronger, and burns out when its fuel is used up.
+  ask patches with [fire?] [
+    set fire-time fire-time + 1
+    set fire-strength min list 1 (fire-time / fire-growth-time)
+    if fire-time >= fire-burn-time [ burn-out ]
+  ]
+
+  ;; 2. Fuel near a burning patch can catch fire, but not through a wall.
+  ;;    (Patches that catch fire now only start spreading in the next second.)
+  ask patches with [fire?] [
+    let strength fire-strength
+    ask patches in-radius fire-reach with [can-catch-fire?] [
+      if random-float 1 < strength * catch-chance and clear-view? myself [ catch-fire ]
     ]
   ]
 
-  ;; Increase fire time and smoke density
-ask patches with [fire?] [
-  set fire-time fire-time + 1
-  set smoke min (list 1.0 (smoke + 0.1))
-
-  if pcolor = orange and smoke >= 0.8 [
-    set pcolor red
+  ;; 3. Show the fire: orange while it grows, red at full strength.
+  ask patches with [fire?] [
+    ifelse fire-strength < 1 [ set pcolor orange ] [ set pcolor red ]
   ]
+end
 
-  ;; Extinguish fire after 30 ticks
-  if fire-time >= 30 [
-    set fire? false
-    set smoke 0
-    set burned? true
-    set pcolor gray
+;; A patch that has fuel left and is not burning yet.
+to-report can-catch-fire?  ;; patch reporter
+  report inflammatory? and not fire? and not burned?
+end
+
+;; The chance per second that this patch catches fire from one fully burning patch nearby.
+to-report catch-chance  ;; patch reporter
+  ifelse member? object ["door" "intermediate-door"]
+    [ report door-catch-chance ]
+    [ report desk-catch-chance ]
+end
+
+to catch-fire  ;; patch procedure
+  set fire? true
+  set fire-strength 0
+  set fire-time 0
+  set pcolor orange
+end
+
+;; The fuel is used up. The patch no longer burns, but its smoke stays around.
+to burn-out  ;; patch procedure
+  set fire? false
+  set fire-strength 0
+  set burned? true
+  set pcolor gray - 2
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Line of sight
+;; ---------------------------------------------------------------------------
+
+;; True when no wall stands on the straight line between me and the target
+;; (a patch or a turtle). Used for heat radiation and for seeing flames.
+;; We walk along the line in steps of half a patch and look for a wall.
+to-report clear-view? [target]  ;; patch or turtle reporter
+  let total-distance distance target
+  if total-distance = 0 [ report true ]
+  let direction towards target
+  let travelled 0.5
+  while [travelled < total-distance] [
+    if [object = "wall"] of patch-at-heading-and-distance direction travelled [ report false ]
+    set travelled travelled + 0.5
   ]
-]
+  report true
 end

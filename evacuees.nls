@@ -440,7 +440,7 @@ end
 ;; Schedule step (6): health
 ;; ---------------------------------------------------------------------------
 
-;; Fire and smoke damage health (both are 0 until the fire model exists).
+;; Fire and smoke damage health.
 to update-evacuee-health
   ask evacuees [
     if fire? [ set health health - fire-damage ]
