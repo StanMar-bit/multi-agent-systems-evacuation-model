@@ -64,7 +64,7 @@ end]]></code>
       <choice type="string" value="slow whoop"></choice>
       <choice type="string" value="voice"></choice>
     </chooser>
-    <chooser x="15" y="575" height="60" variable="cognitive-strategy" current="1" width="250" display="cognitive-strategy">
+    <chooser x="15" y="575" height="60" variable="cognitive-strategy" current="0" width="250" display="cognitive-strategy">
       <choice type="string" value="arousal-based"></choice>
       <choice type="string" value="all rational"></choice>
       <choice type="string" value="all familiar"></choice>
