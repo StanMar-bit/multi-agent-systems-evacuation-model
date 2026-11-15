@@ -164,6 +164,15 @@ to-report can-reach-exit? [i]
   report steps-to-exit i < no-route
 end
 
+;; The number of the nearest exit I can see within the radius (walls block
+;; the view), or -1 when no exit is in sight.
+to-report exit-in-sight [radius]  ;; turtle reporter
+  let doors-seen patches in-radius radius with [exit-door? and clear-view? myself]
+  if not any? doors-seen [ report -1 ]
+  let door min-one-of doors-seen [distance myself]
+  report position true map [ the-exit -> member? door the-exit ] exits
+end
+
 ;; The number of the exit that is closest by walking (not blocked by fire),
 ;; or -1 when no exit can be reached.
 to-report nearest-safe-exit

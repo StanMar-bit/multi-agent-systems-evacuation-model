@@ -14,8 +14,8 @@
 ;;        familiar  (blue)    A < 0.40 and untrained  back along the route it came in by
 ;;        follower  (orange)  0.40 <= A < 0.75        average direction of people nearby,
 ;;                                                    or follows a helper in sight
-;;        panic     (red)     A >= 0.75               up to 1.5x faster away from the fire,
-;;                                                    with random noise, ignores instructions
+;;        panic     (red)     A >= 0.75               wants out and runs up to 1.5x faster,
+;;                                                    but panic gets in the way (see step-panic)
 ;;      (0.75 is the panic-threshold slider.)
 ;;      Arousal rises with flames, smoke, crowding and the arousal of the
 ;;      people around (emotional contagion), and drops slowly when there is no
@@ -75,6 +75,9 @@ globals [
   crowd-size                ;; number of people on the 8 patches around that counts as a crowd
   contagion-rate            ;; part of the difference with the arousal of the people in sight taken over per second
   arousal-decay             ;; arousal lost per second when no flames or smoke are in sight
+  panic-vision-factor       ;; panicking evacuees see this part of their normal vision (tunnel vision)
+  panic-randomness          ;; chance that a step of a panicking evacuee goes the wrong way
+  panic-clog-chance         ;; chance that a panicking evacuee in a crowd gets stuck pushing (per step)
 
   ;; ---- results ---------------------------------------------------------------
   evacuated-count           ;; number of evacuees that got out
@@ -112,6 +115,9 @@ to set-evacuee-parameters
   set crowd-size 5                   ;; ASSUMPTION: 5 or more people on the 8 patches around me
   set contagion-rate 0.05            ;; ASSUMPTION: emotional contagion (Bosse et al., 2013): 5% of the difference per second
   set arousal-decay 0.005            ;; ASSUMPTION: calming down from panic (0.75) to calm (0.40) takes about 70 s of walking
+  set panic-vision-factor 0.5        ;; ASSUMPTION: high arousal narrows attention (Easterbrook, 1959): half the vision
+  set panic-randomness 0.3           ;; ASSUMPTION: 3 in 10 steps of a panicking evacuee go the wrong way
+  set panic-clog-chance 0.3          ;; ASSUMPTION: pushing in a crowd jams ("faster-is-slower", Helbing et al., 2000)
 end
 
 to setup-evacuees
@@ -281,9 +287,12 @@ to perceive-and-decide  ;; evacuee procedure
   update-color
 end
 
-;; How far this evacuee can see: Table 1 vision-radius (10 m), less in smoke.
+;; How far this evacuee can see: Table 1 vision-radius (10 m), less in smoke,
+;; and less in panic (tunnel vision).
 to-report vision  ;; evacuee reporter
-  report max list 1 (vision-radius * (1 - smoke))
+  let sight vision-radius * (1 - smoke)
+  if cognitive-state = "panic" [ set sight sight * panic-vision-factor ]
+  report max list 1 sight
 end
 
 ;; True when 'crowd-size' or more people stand on the 8 patches around me.
@@ -407,7 +416,7 @@ end
 
 ;; One step (one patch), depending on the cognitive state.
 to take-one-step  ;; evacuee procedure
-  ;; panic: away from the fire; ignores companions and instructions
+  ;; panic: ignores companions and instructions, see step-panic
   if cognitive-state = "panic" [ step-panic  stop ]
 
   ;; sometimes a step goes in a random direction (helpers make this less likely)
@@ -425,7 +434,7 @@ end
 ;; unless the voice alarm or a helper named an exit. Only when fire cuts that
 ;; route off does the evacuee look for another way: the nearest safe exit.
 to step-familiar  ;; evacuee procedure
-  if can-reach-exit? instructed-exit [ step-toward-exit instructed-exit  stop ]
+  if cognitive-state != "panic" and can-reach-exit? instructed-exit [ step-toward-exit instructed-exit  stop ]
   if not route-blocked? [ step-along-origin-route  stop ]
   step-toward-exit nearest-safe-exit
 end
@@ -456,7 +465,10 @@ to step-own-way  ;; evacuee procedure
 end
 
 ;; Follower: follow a helper in sight (go where the helper sends people),
-;; otherwise walk in the average direction of the people nearby who are moving.
+;; otherwise walk in the average direction of the people nearby who are moving
+;; and seem to know where they go (everybody who is not a follower too).
+;; ASSUMPTION: followers do not follow other followers; otherwise a group of
+;; followers only follows itself and mills around without a plan.
 ;; With nobody to follow, or when the way the crowd is going is blocked (for
 ;; example a crowd pushing into a corner), they fall back on their own exit choice.
 to step-follower  ;; evacuee procedure
@@ -468,7 +480,7 @@ to step-follower  ;; evacuee procedure
     stop
   ]
 
-  let people-moving other evacuees in-radius sight with [moving?]
+  let people-moving other evacuees in-radius sight with [moving? and cognitive-state != "follower"]
   ifelse any? people-moving [
     let old-patch patch-here
     step-in-direction average-heading-of people-moving
@@ -487,24 +499,43 @@ to-report average-heading-of [group]  ;; turtle reporter
   report atan x-sum y-sum
 end
 
-;; Panic: move away from the nearest fire in sight, with random noise.
-;; Without fire in sight they keep running roughly the way they were going.
-;; When a wall or other people are in the way, they run in a random free
-;; direction instead, so they do not freeze in a corner.
+;; Panic: the evacuee still wants to get out and runs up to 1.5x faster (see
+;; current-speed), but panic gets in the way:
+;;   - it ignores companions, helpers and instructions;
+;;   - tunnel vision: it sees only half as far (see vision);
+;;   - in a crowd it pushes and gets stuck now and then, which also blocks the
+;;     people around it ("faster-is-slower", Helbing et al., 2000);
+;;   - 3 in 10 steps are wrong turns;
+;;   - it runs away from fire it sees, even when the way out is behind the fire.
+;; Otherwise it runs to an exit it can see, or with the crowd (herding), or
+;; else its own way.
 to step-panic  ;; evacuee procedure
-  ;; ASSUMPTION: a panicking evacuee standing right next to an exit runs out through it
-  let exit-next-to-me one-of neighbors4 with [exit-door? and free?]
-  if exit-next-to-me != nobody [ step-to exit-next-to-me  stop ]
+  if crowded? and random-float 1 < panic-clog-chance [ stop ]   ;; stuck pushing in the crowd
+  if random-float 1 < panic-randomness [ step-randomly  stop ]  ;; a wrong turn
 
-  let flee-heading heading
-  let fire-seen fire-in-sight vision
+  let sight vision
+  let fire-seen fire-in-sight sight
   if any? fire-seen [
+    let flee-heading heading
     let nearest-fire min-one-of fire-seen [distance myself]
     if nearest-fire != patch-here [ set flee-heading (towards nearest-fire) + 180 ]
+    let old-patch patch-here
+    step-in-direction (flee-heading + random 91 - 45)   ;; random noise: up to 45 degrees either way
+    if patch-here = old-patch [ step-randomly ]         ;; blocked: run in a random free direction
+    stop
   ]
-  let old-patch patch-here
-  step-in-direction (flee-heading + random 91 - 45)   ;; random noise: up to 45 degrees either way
-  if patch-here = old-patch [ step-randomly ]         ;; blocked: run in a random free direction
+
+  let exit-seen exit-in-sight sight
+  if exit-seen != -1 [ step-toward-exit exit-seen  stop ]
+
+  let people-moving other evacuees in-radius sight with [moving?]
+  if any? people-moving [
+    let old-patch patch-here
+    step-in-direction average-heading-of people-moving
+    if patch-here = old-patch [ step-own-way ]
+    stop
+  ]
+  step-own-way
 end
 
 ;; Standing on an exit patch: the evacuee is out.
