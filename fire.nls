@@ -12,6 +12,15 @@
 ;;   - Every second, a burning patch can set fuel up to fire-reach metres away
 ;;     on fire (heat radiation), but never through a wall. The stronger the
 ;;     fire, the bigger the chance. Doors resist fire much longer than desks.
+;;   - FLASHOVER: walls and doors split the building into rooms. When the fire
+;;     in a room gets big enough, the hot smoke under the ceiling sets
+;;     everything in the room on fire at once (chairs, carpet, paper, ...).
+;;     Then the whole room burns and flames come out of its doorways.
+;;     How big the fire must be depends on the room: small rooms with small
+;;     doors flash over quickly, big halls never do (Thomas' flashover formula).
+;;   - Fire and smoke never go through walls. Real walls between rooms hold
+;;     back fire for 30 to 60 minutes (much longer than a run), so fire and
+;;     smoke spread through doorways and corridors instead.
 ;;
 ;; How the smoke works:
 ;;   - Every burning patch makes smoke, more when its fire is stronger.
@@ -43,6 +52,8 @@ patches-own [
   burned?         ;; true once the fuel on this patch is used up
   smoke           ;; smoke density from 0 (clean air) to 1 (thick smoke)
   indoor?         ;; true for every patch inside the building
+  room            ;; number of the room this patch is in (-1 for walls, doors and outside)
+  flashover-power ;; fire power (kW) at which this patch's room flashes over
   smoke-neighbors ;; the neighbouring patches smoke can flow to (not walls, not outside)
   new-smoke       ;; helper for spread-smoke: the smoke on this patch after this step
 ]
@@ -54,6 +65,11 @@ globals [
   fire-reach          ;; distance (m) over which a burning patch can set fuel on fire
   desk-catch-chance   ;; chance per second that a desk catches fire from one fully burning patch nearby
   door-catch-chance   ;; the same for a door
+  desk-power          ;; fire power (kW) of one fully burning patch
+  ceiling-height      ;; height (m) of the rooms
+  door-height         ;; height (m) of the doors
+  max-flashover-area  ;; rooms bigger than this (m2) never flash over
+  flashed-over-rooms  ;; list with the numbers of the rooms that have flashed over
 
   ;; ---- values used by the smoke (ASSUMPTION: set in set-fire-parameters) ----
   smoke-production    ;; smoke a fully burning patch adds per second
@@ -75,6 +91,10 @@ to set-fire-parameters
   set fire-reach 2             ;; ASSUMPTION: a burning desk can set fuel up to 2 m away on fire
   set desk-catch-chance 0.02   ;; ASSUMPTION: a desk next to a fully burning desk catches fire after about a minute
   set door-catch-chance 0.002  ;; ASSUMPTION: a door resists fire ten times longer than a desk
+  set desk-power 1000          ;; ASSUMPTION: a desk patch is a desk with chair, computer and paper; a workstation burns at 1-3 MW
+  set ceiling-height 3         ;; ASSUMPTION
+  set door-height 2.1          ;; ASSUMPTION: a normal door; each door patch is 1 m wide
+  set max-flashover-area 500   ;; ASSUMPTION: the central hall (~3900 m2, no furniture) is too big to flash over; the biggest room is ~350 m2
   ;; ASSUMPTION: the three smoke values are chosen so that the room with the
   ;; fire gets noticeable smoke after about 2 minutes and thick smoke after
   ;; about 5 minutes, after which the smoke flows on into the corridors.
@@ -94,6 +114,8 @@ to setup-fire
     set smoke 0
   ]
   setup-smoke-patches
+  setup-rooms
+  set flashed-over-rooms []
 
   ifelse fire-seed = 0
     [ set fire-dice random 1000000 ]   ;; a different fire every run
@@ -135,6 +157,70 @@ to setup-smoke-patches
   ask smoke-patches [ set smoke-neighbors neighbors4 with [indoor? and object != "wall"] ]
 end
 
+;; Give every room a number: a room is a group of patches that touch each
+;; other without a wall or door in between. Then work out per room how much
+;; fire power it takes to flash over.
+to setup-rooms
+  ask patches [ set room -1 ]
+  let room-number 0
+  while [any? patches with [in-a-room? and room = -1]] [
+    ask one-of patches with [in-a-room? and room = -1] [ fill-room room-number ]
+    set room-number room-number + 1
+  ]
+  foreach range room-number [ number -> set-flashover-power number ]
+end
+
+;; Inside the building, and not a wall or a door.
+to-report in-a-room?  ;; patch reporter
+  report indoor? and object != "wall" and not door?
+end
+
+to-report door?  ;; patch reporter
+  report member? object ["door" "intermediate-door"]
+end
+
+;; Give my whole room the same number (a flood fill that stops at walls and doors).
+to fill-room [number]  ;; patch procedure
+  set room number
+  let frontier (patch-set self)
+  while [any? frontier] [
+    let next-frontier no-patches
+    ask frontier [
+      ask neighbors4 with [in-a-room? and room = -1] [
+        set room number
+        set next-frontier (patch-set next-frontier self)
+      ]
+    ]
+    set frontier next-frontier
+  ]
+end
+
+;; The fire power a room needs to flash over, with Thomas' formula
+;; (Walton and Thomas, SFPE Handbook):
+;;   power (kW) = 7.8 x surface area of the room (m2)
+;;              + 378 x door area (m2) x square root of the door height (m)
+;; The surface area is the floor, the ceiling and the walls. A big room loses
+;; more heat to its walls and big doors let more heat out, so both need a
+;; bigger fire before flashover.
+;; ASSUMPTION: a space bigger than max-flashover-area (the central hall with
+;; its corridors) never flashes over: it has no furniture and the smoke
+;; spreads out and cools down.
+to set-flashover-power [number]
+  let room-patches patches with [room = number]
+  let floor-area count room-patches
+  let wall-length count room-patches with [any? neighbors4 with [object = "wall" or door?]]
+  let door-area door-height * count patches with [door? and any? neighbors4 with [room = number]]
+  let surface-area (2 * floor-area) + (wall-length * ceiling-height) - door-area
+  let power (7.8 * surface-area) + (378 * door-area * sqrt door-height)
+  if floor-area > max-flashover-area [ set power never ]
+  ask room-patches [ set flashover-power power ]
+end
+
+;; A fire power no fire in this building can reach: "never flashes over".
+to-report never
+  report 999999999
+end
+
 
 ;; ---------------------------------------------------------------------------
 ;; Schedule step (1): the fire grows and spreads
@@ -165,7 +251,10 @@ to grow-and-spread-fire
     ]
   ]
 
-  ;; 3. Show the fire: orange while it grows, red at full strength.
+  ;; 3. A room with a big enough fire flashes over.
+  check-flashover
+
+  ;; 4. Show the fire: orange while it grows, red at full strength.
   ask patches with [fire?] [
     ifelse fire-strength < 1 [ set pcolor orange ] [ set pcolor red ]
   ]
@@ -178,9 +267,35 @@ end
 
 ;; The chance per second that this patch catches fire from one fully burning patch nearby.
 to-report catch-chance  ;; patch reporter
-  ifelse member? object ["door" "intermediate-door"]
+  ifelse door?
     [ report door-catch-chance ]
     [ report desk-catch-chance ]
+end
+
+to check-flashover
+  foreach remove-duplicates [room] of patches with [fire? and room != -1] [ number ->
+    if not member? number flashed-over-rooms [
+      let room-patches patches with [room = number]
+      let power sum [fire-strength * desk-power] of room-patches with [fire?]
+      if power >= [flashover-power] of one-of room-patches [ flash-over number ]
+    ]
+  ]
+end
+
+;; Everything in the room catches fire at once and burns at full strength,
+;; and flames come out of the doorways of the room.
+to flash-over [number]
+  set flashed-over-rooms lput number flashed-over-rooms
+  let room-doors patches with [door? and any? neighbors4 with [room = number]]
+  ask (patch-set patches with [room = number] room-doors) with [not burned?] [ burn-at-full-strength ]
+end
+
+;; Catch fire (if not burning yet) and burn at full strength at once, without
+;; the slow start. Used for flashover.
+to burn-at-full-strength  ;; patch procedure
+  if not fire? [ catch-fire ]
+  set fire-time max list fire-time fire-growth-time
+  set fire-strength 1
 end
 
 to catch-fire  ;; patch procedure
@@ -224,7 +339,7 @@ to spread-smoke
   ]
 
   ;; 4. Show the smoke on the floor: the darker the grey, the thicker the smoke.
-  ask smoke-patches with [object = "floor" and reachable?] [
+  ask smoke-patches with [object = "floor" and reachable? and not fire? and not burned?] [
     set pcolor scale-color gray smoke 1.2 0
   ]
 end
