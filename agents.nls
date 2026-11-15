@@ -16,6 +16,7 @@
 
 turtles-own [
   speed            ;; USED by evacuees.nls and helpers.nls: walking speed in m/s (= patches per tick)
+  step-length      ;; USED by navigation.nls: length (m) of the last step, 1 straight or 1.41 diagonal
   origin-path      ;; OLD, unused
   origin           ;; OLD, unused
   relation         ;; OLD, unused (the new evacuees use companion instead)

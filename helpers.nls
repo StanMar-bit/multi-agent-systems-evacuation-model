@@ -132,6 +132,7 @@ to move-helpers
   ask helpers with [active?] [
     set step-budget step-budget + speed * smoke-slowdown   ;; slower in smoke, like evacuees
     while [step-budget >= 1] [
+      set step-length 1   ;; a blocked step also takes the time of one step (see move-evacuees)
       ;; Can the helper still reach someone who needs help? Then go there.
       ;; Otherwise its work is done: leave through the nearest exit.
       ifelse [help-distance] of patch-here < no-route [
@@ -140,7 +141,7 @@ to move-helpers
         step-toward-exit nearest-safe-exit
         if exit-door? [ leave-building-as-helper ]   ;; the helper is removed, which also ends this loop
       ]
-      set step-budget step-budget - 1
+      set step-budget step-budget - step-length
     ]
   ]
 end

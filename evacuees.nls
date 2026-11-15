@@ -328,8 +328,11 @@ end
 ;; ---------------------------------------------------------------------------
 
 ;; Speed is in patches per second. Every second the evacuee adds its speed to
-;; step-budget and takes one step (one patch) for every whole patch in it.
-;; The part of a patch that is left over is used in the next second.
+;; step-budget and keeps taking steps while there is at least one metre in it.
+;; Each step uses up its length (1 m, or 1.41 m diagonally); waiting because
+;; the way is blocked uses up 1 m too, because the time passes anyway. What is
+;; left over (it may be slightly below 0 after a diagonal step) carries over to
+;; the next second, so on average everyone walks exactly at their speed.
 ;; ASSUMPTION: the people closest to an exit move first. In reality everybody
 ;; moves at the same time. If someone at the back moved first, they would bump
 ;; into the person in front who has not stepped yet, and a queue would move at
@@ -341,8 +344,9 @@ to move-evacuees
     ask walker [
       set step-budget step-budget + current-speed
       while [step-budget >= 1] [
+        set step-length 1                       ;; a blocked step also takes the time of one step
         take-one-step
-        set step-budget step-budget - 1
+        set step-budget step-budget - step-length
         if exit-door? [ leave-building ]   ;; the evacuee is removed, which also ends this loop
       ]
     ]
