@@ -1036,4 +1036,163 @@ Group 3, Multi-Agent Systems, Tilburg University (2025-2026): David Karapetian, 
     </shape>
   </linkShapes>
   <previewCommands>setup repeat 75 [ go ]</previewCommands>
+  <experiments>
+      <experiment name="experiment-1" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false" timeLimit="900">
+        <setup>setup</setup>
+        <go>go</go>
+        <metrics>
+          <metric>total-evacuation-time</metric>
+          <metric>time-until-out 0.5</metric>
+          <metric>time-until-out 0.9</metric>
+          <metric>casualties</metric>
+          <metric>evacuated-count</metric>
+          <metric>count evacuees</metric>
+          <metric>mean-reaction-time</metric>
+          <metric>share-of-time-in &quot;rational&quot;</metric>
+          <metric>share-of-time-in &quot;familiar&quot;</metric>
+          <metric>share-of-time-in &quot;follower&quot;</metric>
+          <metric>share-of-time-in &quot;panic&quot;</metric>
+          <metric>detection-delay</metric>
+          <metric>length flashed-over-rooms</metric>
+        </metrics>
+        <constants>
+          <enumeratedValueSet variable="fire-location"><value value="&quot;random desk&quot;"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="number-of-evacuees"><value value="150"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="max-duration"><value value="900"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="panic-threshold"><value value="0.75"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="vision-radius"><value value="10"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="companion-probability"><value value="0.3"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="helper-range"><value value="5"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="helper-capacity"><value value="3"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="wall-fire-resistance"><value value="30"></value></enumeratedValueSet>
+          <steppedValueSet variable="fire-seed" first="1" step="1" last="10"></steppedValueSet>
+          <enumeratedValueSet variable="cognitive-strategy"><value value="&quot;arousal-based&quot;"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="number-of-helpers"><value value="0"></value><value value="2"></value><value value="4"></value><value value="8"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="alarm-type"><value value="&quot;none&quot;"></value><value value="&quot;slow whoop&quot;"></value><value value="&quot;voice&quot;"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="proportion-trained"><value value="0"></value><value value="0.5"></value><value value="1"></value></enumeratedValueSet>
+        </constants>
+      </experiment>
+      <experiment name="experiment-2" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false" timeLimit="900">
+        <setup>setup</setup>
+        <go>go</go>
+        <metrics>
+          <metric>total-evacuation-time</metric>
+          <metric>time-until-out 0.5</metric>
+          <metric>time-until-out 0.9</metric>
+          <metric>casualties</metric>
+          <metric>evacuated-count</metric>
+          <metric>count evacuees</metric>
+          <metric>mean-reaction-time</metric>
+          <metric>share-of-time-in &quot;rational&quot;</metric>
+          <metric>share-of-time-in &quot;familiar&quot;</metric>
+          <metric>share-of-time-in &quot;follower&quot;</metric>
+          <metric>share-of-time-in &quot;panic&quot;</metric>
+          <metric>detection-delay</metric>
+          <metric>length flashed-over-rooms</metric>
+        </metrics>
+        <constants>
+          <enumeratedValueSet variable="fire-location"><value value="&quot;random desk&quot;"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="number-of-evacuees"><value value="150"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="max-duration"><value value="900"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="panic-threshold"><value value="0.75"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="vision-radius"><value value="10"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="companion-probability"><value value="0.3"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="helper-range"><value value="5"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="helper-capacity"><value value="3"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="wall-fire-resistance"><value value="30"></value></enumeratedValueSet>
+          <steppedValueSet variable="fire-seed" first="1" step="1" last="10"></steppedValueSet>
+          <enumeratedValueSet variable="cognitive-strategy"><value value="&quot;arousal-based&quot;"></value><value value="&quot;all rational&quot;"></value><value value="&quot;all familiar&quot;"></value><value value="&quot;all follower&quot;"></value><value value="&quot;all panic&quot;"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="alarm-type"><value value="&quot;slow whoop&quot;"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="number-of-helpers"><value value="0"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="proportion-trained"><value value="0"></value></enumeratedValueSet>
+        </constants>
+      </experiment>
+      <experiment name="sensitivity" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false" timeLimit="900">
+        <setup>setup</setup>
+        <go>go</go>
+        <metrics>
+          <metric>total-evacuation-time</metric>
+          <metric>time-until-out 0.5</metric>
+          <metric>time-until-out 0.9</metric>
+          <metric>casualties</metric>
+          <metric>evacuated-count</metric>
+          <metric>count evacuees</metric>
+          <metric>mean-reaction-time</metric>
+          <metric>share-of-time-in &quot;rational&quot;</metric>
+          <metric>share-of-time-in &quot;familiar&quot;</metric>
+          <metric>share-of-time-in &quot;follower&quot;</metric>
+          <metric>share-of-time-in &quot;panic&quot;</metric>
+          <metric>detection-delay</metric>
+          <metric>length flashed-over-rooms</metric>
+        </metrics>
+        <constants>
+          <enumeratedValueSet variable="fire-location"><value value="&quot;random desk&quot;"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="max-duration"><value value="900"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="helper-range"><value value="5"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="helper-capacity"><value value="3"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="wall-fire-resistance"><value value="30"></value></enumeratedValueSet>
+          <steppedValueSet variable="fire-seed" first="1" step="1" last="10"></steppedValueSet>
+          <enumeratedValueSet variable="cognitive-strategy"><value value="&quot;arousal-based&quot;"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="alarm-type"><value value="&quot;slow whoop&quot;"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="number-of-helpers"><value value="0"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="proportion-trained"><value value="0.5"></value></enumeratedValueSet>
+        </constants>
+        <subExperiments>
+          <subExperiment>
+            <enumeratedValueSet variable="panic-threshold"><value value="0.75"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="vision-radius"><value value="10"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="companion-probability"><value value="0.3"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="number-of-evacuees"><value value="150"></value></enumeratedValueSet>
+          </subExperiment>
+          <subExperiment>
+            <enumeratedValueSet variable="panic-threshold"><value value="0.65"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="vision-radius"><value value="10"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="companion-probability"><value value="0.3"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="number-of-evacuees"><value value="150"></value></enumeratedValueSet>
+          </subExperiment>
+          <subExperiment>
+            <enumeratedValueSet variable="panic-threshold"><value value="0.85"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="vision-radius"><value value="10"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="companion-probability"><value value="0.3"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="number-of-evacuees"><value value="150"></value></enumeratedValueSet>
+          </subExperiment>
+          <subExperiment>
+            <enumeratedValueSet variable="panic-threshold"><value value="0.75"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="vision-radius"><value value="5"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="companion-probability"><value value="0.3"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="number-of-evacuees"><value value="150"></value></enumeratedValueSet>
+          </subExperiment>
+          <subExperiment>
+            <enumeratedValueSet variable="panic-threshold"><value value="0.75"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="vision-radius"><value value="15"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="companion-probability"><value value="0.3"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="number-of-evacuees"><value value="150"></value></enumeratedValueSet>
+          </subExperiment>
+          <subExperiment>
+            <enumeratedValueSet variable="panic-threshold"><value value="0.75"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="vision-radius"><value value="10"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="companion-probability"><value value="0"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="number-of-evacuees"><value value="150"></value></enumeratedValueSet>
+          </subExperiment>
+          <subExperiment>
+            <enumeratedValueSet variable="panic-threshold"><value value="0.75"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="vision-radius"><value value="10"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="companion-probability"><value value="0.6"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="number-of-evacuees"><value value="150"></value></enumeratedValueSet>
+          </subExperiment>
+          <subExperiment>
+            <enumeratedValueSet variable="panic-threshold"><value value="0.75"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="vision-radius"><value value="10"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="companion-probability"><value value="0.3"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="number-of-evacuees"><value value="75"></value></enumeratedValueSet>
+          </subExperiment>
+          <subExperiment>
+            <enumeratedValueSet variable="panic-threshold"><value value="0.75"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="vision-radius"><value value="10"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="companion-probability"><value value="0.3"></value></enumeratedValueSet>
+            <enumeratedValueSet variable="number-of-evacuees"><value value="300"></value></enumeratedValueSet>
+          </subExperiment>
+        </subExperiments>
+      </experiment>
+  </experiments>
 </model>

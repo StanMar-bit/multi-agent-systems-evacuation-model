@@ -83,6 +83,7 @@ globals [
   evacuated-count           ;; number of evacuees that got out
   casualties                ;; number of evacuees whose health reached 0
   reaction-times            ;; list with the reaction time of every evacuee that started moving
+  exit-times                ;; list with the second in which each evacuee got out, in order
   last-exit-time            ;; second in which the last evacuee got out
   rational-ticks            ;; seconds spent in each cognitive state, added up over all evacuees
   familiar-ticks
@@ -125,6 +126,7 @@ to setup-evacuees
   set evacuated-count 0
   set casualties 0
   set reaction-times []
+  set exit-times []
   set last-exit-time 0
   set rational-ticks 0
   set familiar-ticks 0
@@ -542,6 +544,7 @@ end
 to leave-building  ;; evacuee procedure
   set evacuated-count evacuated-count + 1
   set last-exit-time ticks + 1   ;; it got out during this second, so at the end of it
+  set exit-times lput last-exit-time exit-times
   die
 end
 
@@ -587,6 +590,15 @@ end
 ;; the current time; once nobody is left it is the second the last one got out.
 to-report total-evacuation-time
   ifelse any? evacuees [ report ticks ] [ report last-exit-time ]
+end
+
+;; The second in which the given share of all evacuees was out, e.g. 0.9 for
+;; 90%, or -1 if that share never got out. Unlike the total evacuation time,
+;; this does not depend on the last few people.
+to-report time-until-out [share]
+  let needed ceiling (share * number-of-evacuees)
+  if length exit-times < needed [ report -1 ]
+  report item (needed - 1) exit-times
 end
 
 ;; Proposal: "the share of agents in each cognitive state", measured here as the
