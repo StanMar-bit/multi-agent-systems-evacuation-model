@@ -87,7 +87,7 @@ end
 
 ;; Without an alarm, a helper starts working once it sees fire, smoke or people running.
 to check-if-helper-notices-fire  ;; helper procedure
-  if (any? patches in-radius vision-radius with [fire?])
+  if (any? fire-in-sight vision-radius)
      or (smoke >= smoke-notice-level)
      or (any? evacuees in-radius vision-radius with [moving?]) [
     set active? true

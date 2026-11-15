@@ -215,3 +215,13 @@ to-report clear-view? [target]  ;; patch or turtle reporter
   ]
   report true
 end
+
+;; The burning patches I can see within the given radius (walls block the view).
+to-report fire-in-sight [radius]  ;; turtle reporter
+  report patches in-radius radius with [fire? and clear-view? myself]
+end
+
+;; True when my patch or one of the eight patches around it burns.
+to-report fire-close-by?  ;; turtle reporter
+  report fire? or any? neighbors with [fire?]
+end

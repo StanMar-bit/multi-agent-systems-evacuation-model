@@ -215,7 +215,7 @@ end
 to perceive-and-decide  ;; evacuee procedure
   ;; --- 1. What can I see?
   let sight vision
-  let sees-flames? any? patches in-radius sight with [fire?]
+  let sees-flames? any? fire-in-sight sight                 ;; walls block the view
   let in-smoke? smoke >= smoke-notice-level
   let sees-people-running? (any? other evacuees in-radius sight with [moving?])
                            or (any? helpers in-radius sight with [active?])
@@ -230,9 +230,10 @@ to perceive-and-decide  ;; evacuee procedure
   if in-smoke? [ raise-arousal smoke-arousal-gain ]
 
   ;; --- 4. Count down the pre-movement delay.
+  ;;        ASSUMPTION: nobody keeps waiting with flames right next to them.
   if aware? and not moving? [
     set delay-left delay-left - 1
-    if delay-left <= 0 [ start-moving ]
+    if delay-left <= 0 or fire-close-by? [ start-moving ]
   ]
 
   ;; --- 5. Once moving, arousal decides the cognitive state.
@@ -425,9 +426,9 @@ to step-panic  ;; evacuee procedure
   if exit-next-to-me != nobody [ step-to exit-next-to-me  stop ]
 
   let flee-heading heading
-  let fire-in-sight patches in-radius vision with [fire?]
-  if any? fire-in-sight [
-    let nearest-fire min-one-of fire-in-sight [distance myself]
+  let fire-seen fire-in-sight vision
+  if any? fire-seen [
+    let nearest-fire min-one-of fire-seen [distance myself]
     if nearest-fire != patch-here [ set flee-heading (towards nearest-fire) + 180 ]
   ]
   let old-patch patch-here
