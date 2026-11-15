@@ -4,8 +4,9 @@
 ;; Scale: 1 patch = 1 m and 1 tick = 1 s, as in the rest of the model.
 ;;
 ;; How the fire works:
-;;   - Only fuel burns: desks and doors (patches with inflammatory? = true,
-;;     set in the environment file). Floors and walls never burn.
+;;   - At first only fuel burns: desks and doors (patches with inflammatory?
+;;     = true, set in the environment file). The rest of a room only burns
+;;     after flashover (see below); corridors and walls never burn.
 ;;   - A burning patch starts small and grows to full strength in
 ;;     fire-growth-time seconds. After fire-burn-time seconds its fuel is used
 ;;     up and it is burned out (grey).
@@ -19,8 +20,9 @@
 ;;     How big the fire must be depends on the room: small rooms with small
 ;;     doors flash over quickly, big halls never do (Thomas' flashover formula).
 ;;   - WALLS hold back fire and smoke. A wall next to a fully burning patch
-;;     heats up; after wall-fire-resistance minutes (interface) it fails: fire
-;;     and smoke then go through it and the patches behind it catch fire.
+;;     heats up; after wall-fire-resistance minutes (interface) it fails: smoke
+;;     flows through it, and the failed wall burns. Its fire counts for the
+;;     room behind it, so a small room behind it soon flashes over too.
 ;;     Real walls between rooms hold back fire for 30 to 60 minutes (Dutch
 ;;     building code: WBDBO), light partitions much shorter. People still
 ;;     cannot walk through a failed wall.
@@ -110,12 +112,11 @@ to set-fire-parameters
   set ceiling-height 3         ;; ASSUMPTION
   set door-height 2.1          ;; ASSUMPTION: a normal door; each door patch is 1 m wide
   set max-flashover-area 500   ;; ASSUMPTION: the central hall (~3900 m2, no furniture) is too big to flash over; the biggest room is ~350 m2
-  ;; ASSUMPTION: the three smoke values are chosen so that the room with the
-  ;; fire gets noticeable smoke after about 2 minutes and thick smoke after
-  ;; about 5 minutes, after which the smoke flows on into the corridors.
-  set smoke-production 0.25
   set smoke-flow-speed 1       ;; ASSUMPTION: smoke leaves a burning room at about 1 m/s
   set smoke-flow-reach 10      ;; ASSUMPTION: after about 10 m the smoke cools and slows down (ceiling jet, Alpert)
+  ;; ASSUMPTION: these three are chosen so that the room with the fire gets
+  ;; noticeable smoke after 2-3 minutes and is full of smoke when it flashes over.
+  set smoke-production 0.25
   set smoke-spread 0.8
   set smoke-spread-steps 4
 end
