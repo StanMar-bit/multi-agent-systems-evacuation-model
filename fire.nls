@@ -27,10 +27,16 @@
 ;;
 ;; How the smoke works:
 ;;   - Every burning patch makes smoke, more when its fire is stronger.
-;;   - Smoke spreads to the neighbouring patches (never through a wall), from
-;;     thick smoke to thinner smoke, so it fills the room and then flows
-;;     through the doors into corridors and other rooms.
-;;   - Smoke escapes to the outside through the exit doors.
+;;   - Hot smoke flows away from the fire (under the ceiling) at about
+;;     smoke-flow-speed m/s, through doorways into corridors and other rooms,
+;;     and piles up where it cannot go further (the far ends of rooms and
+;;     corridors). Further than smoke-flow-reach metres from the fire the smoke
+;;     has cooled down and flows slower and slower (twice as far = half as
+;;     fast). For this we use a "distance map" from the fire, the same
+;;     idea as the exit maps in navigation.nls: smoke moves to the
+;;     neighbouring patches that are further from the fire.
+;;   - Smoke also mixes with the neighbouring patches, from thick to thin.
+;;   - Smoke never goes through a wall, and escapes outside through the exit doors.
 ;;   - ASSUMPTION: one smoke value per patch. We do not model the hot smoke
 ;;     layer under the ceiling separately.
 ;;   - The darker the grey of a floor patch, the thicker the smoke.
@@ -60,6 +66,8 @@ patches-own [
   wall-heat       ;; seconds a wall has had a fully burning patch next to it
   smoke-neighbors ;; the neighbouring patches smoke can flow to (not walls, not outside)
   new-smoke       ;; helper for spread-smoke: the smoke on this patch after this step
+  fire-distance   ;; number of steps from this patch to the nearest fire (for the smoke flow)
+  downwind        ;; the smoke-neighbors further from the fire: where smoke flows to
 ]
 
 globals [
@@ -77,8 +85,11 @@ globals [
 
   ;; ---- values used by the smoke (ASSUMPTION: set in set-fire-parameters) ----
   smoke-production    ;; smoke a fully burning patch adds per second
+  smoke-flow-speed    ;; speed (m/s) at which smoke flows away from the fire
+  smoke-flow-reach    ;; distance (m) from the fire after which the flow slows down
   smoke-spread        ;; how fast smoke evens out between neighbouring patches (0 to 1)
-  smoke-spread-steps  ;; how many times per second the smoke spreads
+  smoke-spread-steps  ;; how many times per second the smoke flows and spreads
+  fire-count-last-smoke-map ;; number of burning patches when the fire distance map was last made
 
   smoke-patches       ;; all patches smoke can be on: inside the building and not a wall
   fire-dice           ;; the seed for the fire's own random numbers (see "The same fire in every run")
@@ -103,6 +114,8 @@ to set-fire-parameters
   ;; fire gets noticeable smoke after about 2 minutes and thick smoke after
   ;; about 5 minutes, after which the smoke flows on into the corridors.
   set smoke-production 0.25
+  set smoke-flow-speed 1       ;; ASSUMPTION: smoke leaves a burning room at about 1 m/s
+  set smoke-flow-reach 10      ;; ASSUMPTION: after about 10 m the smoke cools and slows down (ceiling jet, Alpert)
   set smoke-spread 0.8
   set smoke-spread-steps 4
 end
@@ -121,6 +134,7 @@ to setup-fire
   setup-smoke-patches
   setup-rooms
   set flashed-over-rooms []
+  set fire-count-last-smoke-map -1   ;; the fire distance map is made in the first second
 
   ifelse fire-seed = 0
     [ set fire-dice random 1000000 ]   ;; a different fire every run
@@ -359,29 +373,68 @@ end
 ;; ---------------------------------------------------------------------------
 
 to spread-smoke
+  ;; The direction of the flow only changes when the fire grows (or shrinks).
+  if count patches with [fire?] != fire-count-last-smoke-map [ make-fire-distance-map ]
+
   ;; 1. Burning patches make smoke.
   ask patches with [fire?] [
     set smoke min list 1 (smoke + smoke-production * fire-strength)
   ]
 
-  ;; 2. Smoke flows from thick to thin: every patch swaps part of the difference
-  ;;    with each neighbour. First all patches work out their new smoke, then
-  ;;    all of them take it at the same time, so the order does not matter.
+  ;; Every step, first all patches work out their new smoke, then all of them
+  ;; take it at the same time, so the order of the patches does not matter.
   repeat smoke-spread-steps [
+    ;; 2. Smoke flows away from the fire: every patch passes part of its smoke
+    ;;    on to its downwind neighbours (smoke-flow-speed patches per second).
+    ask smoke-patches [ set new-smoke smoke ]
+    ask smoke-patches with [any? downwind] [
+      let flowing smoke * flow-speed-here / smoke-spread-steps
+      set new-smoke new-smoke - flowing
+      let share flowing / count downwind
+      ask downwind [ set new-smoke new-smoke + share ]
+    ]
+    ask smoke-patches [ set smoke min list 1 new-smoke ]
+
+    ;; 3. Smoke mixes from thick to thin: every patch swaps part of the
+    ;;    difference with each neighbour.
     ask smoke-patches [
       let difference (sum [smoke] of smoke-neighbors) - (count smoke-neighbors * smoke)
       set new-smoke smoke + (smoke-spread / 4) * difference
     ]
     ask smoke-patches [ set smoke new-smoke ]
 
-    ;; 3. Smoke escapes to the outside through the exit doors.
+    ;; 4. Smoke escapes to the outside through the exit doors.
     ask smoke-patches with [object = "door"] [ set smoke 0 ]
   ]
 
-  ;; 4. Show the smoke on the floor: the darker the grey, the thicker the smoke.
+  ;; 5. Show the smoke on the floor: the darker the grey, the thicker the smoke.
   ask smoke-patches with [object = "floor" and reachable? and not fire? and not burned?] [
     set pcolor scale-color gray smoke 1.2 0
   ]
+end
+
+
+;; How fast smoke flows away from the fire on this patch (m/s): full speed
+;; close to the fire, slower further away because the smoke cools down.
+to-report flow-speed-here  ;; patch reporter
+  report smoke-flow-speed * min list 1 (smoke-flow-reach / max list 1 fire-distance)
+end
+
+;; How many steps every patch is from the nearest fire (a flood fill like
+;; make-exit-distance-maps in navigation.nls, but through smoke-neighbors, so
+;; also over desks). Smoke flows to the neighbours that are further away.
+to make-fire-distance-map
+  ask smoke-patches [ set fire-distance no-route ]
+  let steps 0
+  let ring smoke-patches with [fire?]
+  ask ring [ set fire-distance 0 ]
+  while [any? ring] [
+    set steps steps + 1
+    set ring patch-set [smoke-neighbors with [fire-distance = no-route]] of ring
+    ask ring [ set fire-distance steps ]
+  ]
+  ask smoke-patches [ set downwind smoke-neighbors with [fire-distance > [fire-distance] of myself] ]
+  set fire-count-last-smoke-map count patches with [fire?]
 end
 
 
