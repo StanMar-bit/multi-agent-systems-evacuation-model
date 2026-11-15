@@ -130,7 +130,7 @@ to move-helpers
   if any? helpers with [active?] [ make-help-distance-map ]
 
   ask helpers with [active?] [
-    set step-budget step-budget + speed
+    set step-budget step-budget + speed * smoke-slowdown   ;; slower in smoke, like evacuees
     while [step-budget >= 1] [
       ;; Can the helper still reach someone who needs help? Then go there.
       ;; Otherwise its work is done: leave through the nearest exit.

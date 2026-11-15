@@ -63,6 +63,7 @@ globals [
   companion-search-time     ;; seconds an evacuee looks for its companion before going alone
   fire-damage               ;; health lost per second on a burning patch
   smoke-damage              ;; health lost per second in the thickest smoke (smoke = 1)
+  smoke-speed-loss          ;; part of the walking speed lost in the thickest smoke (smoke = 1)
 
   ;; ---- results ---------------------------------------------------------------
   evacuated-count           ;; number of evacuees that got out
@@ -95,6 +96,7 @@ to set-evacuee-parameters
   set companion-search-time 30       ;; ASSUMPTION
   set fire-damage 50                 ;; ASSUMPTION: two seconds in the fire is deadly
   set smoke-damage 2                 ;; ASSUMPTION: 50 seconds in the thickest smoke is deadly
+  set smoke-speed-loss 0.5           ;; ASSUMPTION: people walk about half as fast in thick smoke (Jin, 1978; Fridolf et al., 2013)
 end
 
 to setup-evacuees
@@ -342,7 +344,12 @@ to-report current-speed  ;; evacuee reporter
   let current speed
   if helped? [ set current current * helper-speed-factor ]                 ;; helpers make evacuees walk faster
   if cognitive-state = "panic" [ set current current * (1 + random-float 0.5) ]  ;; panic: up to 1.5x faster
-  report current
+  report current * smoke-slowdown                                          ;; slower in smoke
+end
+
+;; In smoke people walk slower: 1 in clean air, 1 - smoke-speed-loss in the thickest smoke.
+to-report smoke-slowdown  ;; turtle reporter (also used by helpers)
+  report 1 - smoke-speed-loss * smoke
 end
 
 ;; One step (one patch), depending on the cognitive state.

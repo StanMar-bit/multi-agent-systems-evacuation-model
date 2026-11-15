@@ -6,7 +6,7 @@
   ;;"environment.nls"
   "environment_cube.nls"
   "alarm-and-fire.nls"   ;; the alarm
-  "fire.nls"             ;; fire
+  "fire.nls"             ;; fire and smoke
   "navigation.nls"       ;; exits, distance maps and taking steps
   "evacuees.nls"         ;; evacuee agents
   "helpers.nls"          ;; helper agents
@@ -34,7 +34,8 @@ to go
   if not any? evacuees or ticks >= max-duration [ stop ]
 
   ;; The schedule from the proposal. One tick is one second.
-  spread-fire                  ;; (1) fire spreads
+  spread-fire                  ;; (1) fire and smoke spread
+  spread-smoke
   update-alarm                 ;; (2) detection and alarm
   update-exit-distance-maps    ;;     routes change when the fire blocks patches
   evacuees-perceive            ;; (3) evacuees perceive and update arousal and state
