@@ -11,19 +11,34 @@
 ;;        "slow whoop"  everybody becomes aware, but the tone carries no information
 ;;        "voice"       everybody becomes aware and hears the nearest safe exit
 ;;      What the alarm does to an evacuee is in hear-alarm (evacuees.nls).
+;;
+;; The alarm goes off as soon as one of the smoke detectors measures enough
+;; smoke. ASSUMPTION: there is a smoke detector on the ceiling every
+;; detector-spacing metres, in rooms and corridors alike.
 ;; ============================================================================
 
 globals [
-  alarm-sounding?   ;; true from the moment the alarm goes off
-  detection-delay   ;; seconds between the start of the run and the alarm
+  alarm-sounding?        ;; true from the moment the alarm goes off
+  detection-delay        ;; second in which the alarm went off (-1 = not yet)
+
+  ;; ---- values used by the smoke detectors (ASSUMPTION) ----
+  detector-spacing       ;; distance (m) between two smoke detectors
+  detector-smoke-level   ;; smoke density at which a detector sets off the alarm
+
+  smoke-detectors        ;; the patches with a smoke detector
 ]
 
-;; Called once from setup.
+;; Called once from setup, after setup-fire.
 to setup-alarm
+  set detector-spacing 7         ;; ASSUMPTION: one detector covers about 50 m2 of ceiling
+  set detector-smoke-level 0.05  ;; ASSUMPTION: a detector reacts to a little smoke
+
   set alarm-sounding? false
-  ;; ASSUMPTION: the run starts at the moment the fire is detected, so the alarm
-  ;; goes off in the first tick.
-  set detection-delay 0
+  set detection-delay -1
+  set smoke-detectors patches with [
+    object = "floor" and reachable? and indoor? and
+    pxcor mod detector-spacing = 0 and pycor mod detector-spacing = 0
+  ]
 end
 
 ;; Schedule step (2): detection and alarm.
@@ -31,8 +46,9 @@ to update-alarm
   if alarm-sounding? [ stop ]          ;; the alarm only has to start once
   if alarm-type = "none" [ stop ]      ;; no alarm: evacuees must notice the fire themselves
 
-  if ticks >= detection-delay [
+  if any? smoke-detectors with [smoke >= detector-smoke-level] [
     set alarm-sounding? true
+    set detection-delay ticks
     ask evacuees [ hear-alarm ]        ;; see evacuees.nls
     ask helpers [ set active? true ]   ;; helpers start working as soon as the alarm sounds
   ]

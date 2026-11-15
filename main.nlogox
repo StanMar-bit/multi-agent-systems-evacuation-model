@@ -16,8 +16,8 @@ to setup
   clear-all
   setup-environment
   compute-reachable-area
-  setup-alarm            ;; the alarm is off
   setup-fire             ;; one desk catches fire
+  setup-alarm            ;; place the smoke detectors; the alarm is off
   setup-navigation       ;; find the exits and make the distance maps
   setup-evacuees
   setup-helpers
@@ -36,7 +36,7 @@ to go
   ;; The schedule from the proposal. One tick is one second.
   spread-fire                  ;; (1) fire and smoke spread
   spread-smoke
-  update-alarm                 ;; (2) detection and alarm
+  update-alarm                 ;; (2) smoke detectors and alarm
   update-exit-distance-maps    ;;     routes change when the fire blocks patches
   evacuees-perceive            ;; (3) evacuees perceive and update arousal and state
   helpers-instruct             ;; (4) helpers instruct
