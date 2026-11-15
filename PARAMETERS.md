@@ -64,12 +64,14 @@ All values as used in the model (`main.nlogox` and the `.nls` files). Scale: 1 p
 
 | Parameter | Value | Source / motivation |
 |---|---|---|
-| fuel | desks (581 m2) and doors; room contents burn after flashover | Level-0 floor plan |
+| fuel | desks (581 m2), doors, and carpet in the furnished rooms (1218 m2); room contents burn after flashover | Level-0 floor plan |
 | fire-growth-time | 120 s to full strength | ASSUMPTION (t-squared growth) |
 | fire-burn-time | 1800 s | Office fire load ~420 MJ/m2 at ~250 kW/m2 (Eurocode EN 1991-1-2) |
 | fire-reach | 2 m (heat radiation), never through walls | ASSUMPTION |
 | desk-catch-chance | 0.02 per s from one fully burning patch | ASSUMPTION (~1 min to the next desk) |
 | door-catch-chance | 0.002 per s | ASSUMPTION (doors resist 10x longer) |
+| carpet-catch-chance | 0.002 per s, only from burning furniture or doors (not from other carpet) | ASSUMPTION; floor coverings need strong radiant heat to keep burning (EN 13501-1) |
+| carpet-power | 250 kW per burning m2 | ASSUMPTION (a quarter of a desk) |
 | desk-power | 1 MW per burning patch | Workstations burn at 1-3 MW |
 | flashover power | 7.8 x surface area + 378 x door area x sqrt(door height) kW (1.4-6.7 MW per room) | Thomas (1981) |
 | ceiling / door height | 3 m / 2.1 m | ASSUMPTION |

@@ -5,8 +5,15 @@
 ;;
 ;; How the fire works:
 ;;   - At first only fuel burns: desks and doors (patches with inflammatory?
-;;     = true, set in the environment file). The rest of a room only burns
-;;     after flashover (see below); corridors and walls never burn.
+;;     = true, set in the environment file) and the carpet in the rooms.
+;;     The rest of a room only burns after flashover (see below); corridors
+;;     and walls never burn.
+;;   - CARPET: every room with furniture (and not bigger than the biggest
+;;     room) has carpet. Carpet burns weakly (a quarter of a desk) and only
+;;     catches fire from burning furniture or doors nearby, never from other
+;;     carpet: on its own a carpet does not carry a fire across the room, it
+;;     needs the heat of something burning next to it (floor coverings in
+;;     public buildings only keep burning under strong heat, EN 13501-1).
 ;;   - A burning patch starts small and grows to full strength in
 ;;     fire-growth-time seconds. After fire-burn-time seconds its fuel is used
 ;;     up and it is burned out (grey).
@@ -61,6 +68,7 @@ patches-own [
   fire-strength   ;; how strong the fire on this patch is, from 0 (just started) to 1 (full)
   fire-time       ;; seconds this patch has been burning
   burned?         ;; true once the fuel on this patch is used up
+  carpet?         ;; true for the floor of a room with carpet (weak fuel)
   smoke           ;; smoke density from 0 (clean air) to 1 (thick smoke)
   indoor?         ;; true for every patch inside the building
   room            ;; number of the room this patch is in (-1 for walls, doors and outside)
@@ -79,7 +87,9 @@ globals [
   fire-reach          ;; distance (m) over which a burning patch can set fuel on fire
   desk-catch-chance   ;; chance per second that a desk catches fire from one fully burning patch nearby
   door-catch-chance   ;; the same for a door
-  desk-power          ;; fire power (kW) of one fully burning patch
+  desk-power          ;; fire power (kW) of one fully burning desk patch (also doors, failed walls and room contents after flashover)
+  carpet-power        ;; fire power (kW) of one fully burning patch of carpet
+  carpet-catch-chance ;; chance per second that carpet catches fire from one fully burning desk or door nearby
   ceiling-height      ;; height (m) of the rooms
   door-height         ;; height (m) of the doors
   max-flashover-area  ;; rooms bigger than this (m2) never flash over
@@ -109,6 +119,8 @@ to set-fire-parameters
   set desk-catch-chance 0.02   ;; ASSUMPTION: a desk next to a fully burning desk catches fire after about a minute
   set door-catch-chance 0.002  ;; ASSUMPTION: a door resists fire ten times longer than a desk
   set desk-power 1000          ;; ASSUMPTION: a desk patch is a desk with chair, computer and paper; a workstation burns at 1-3 MW
+  set carpet-power 250         ;; ASSUMPTION: burning carpet gives about a quarter of the power of a desk
+  set carpet-catch-chance 0.002 ;; ASSUMPTION: carpet next to a fully burning desk catches fire after a few minutes, like a door
   set ceiling-height 3         ;; ASSUMPTION
   set door-height 2.1          ;; ASSUMPTION: a normal door; each door patch is 1 m wide
   set max-flashover-area 500   ;; ASSUMPTION: the central hall (~3900 m2, no furniture) is too big to flash over; the biggest room is ~350 m2
@@ -129,11 +141,13 @@ to setup-fire
     set fire-strength 0
     set fire-time 0
     set burned? false
+    set carpet? false
     set smoke 0
     set wall-heat 0
   ]
   setup-smoke-patches
   setup-rooms
+  setup-carpet
   set flashed-over-rooms []
   set fire-count-last-smoke-map -1   ;; the fire distance map is made in the first second
 
@@ -188,6 +202,17 @@ to setup-rooms
     set room-number room-number + 1
   ]
   foreach range room-number [ number -> set-flashover-power number ]
+end
+
+;; Every room with furniture that is not bigger than max-flashover-area gets
+;; carpet on its floor. The central hall (with the auditorium), the corridors
+;; and the closed courtyards get none.
+to setup-carpet
+  let carpet-rooms remove-duplicates [room] of patches with [object = "desk" and room != -1]
+  ask patches with [object = "floor" and member? room carpet-rooms and flashover-power != never] [
+    set carpet? true
+    set inflammatory? true
+  ]
 end
 
 ;; Inside the building, and not a wall or a door.
@@ -271,7 +296,10 @@ to grow-and-spread-fire
   ask patches with [fire?] [
     let strength fire-strength
     ask patches in-radius fire-reach with [can-catch-fire?] [
-      if random-float 1 < strength * catch-chance and clear-view? myself [ catch-fire ]
+      ;; carpet only catches fire from burning furniture or doors, not from other carpet
+      if not (carpet? and [carpet?] of myself) [
+        if random-float 1 < strength * catch-chance and clear-view? myself [ catch-fire ]
+      ]
     ]
   ]
 
@@ -294,16 +322,21 @@ end
 
 ;; The chance per second that this patch catches fire from one fully burning patch nearby.
 to-report catch-chance  ;; patch reporter
-  ifelse door?
-    [ report door-catch-chance ]
-    [ report desk-catch-chance ]
+  if carpet? [ report carpet-catch-chance ]
+  if door? [ report door-catch-chance ]
+  report desk-catch-chance
+end
+
+;; The fire power (kW) of this patch when it burns at full strength.
+to-report full-power  ;; patch reporter
+  ifelse carpet? [ report carpet-power ] [ report desk-power ]
 end
 
 to check-flashover
   foreach remove-duplicates [room] of patches with [fire? and room != -1] [ number ->
     if not member? number flashed-over-rooms [
       let room-patches patches with [room = number]
-      let power sum [fire-strength * desk-power] of room-patches with [fire?]
+      let power sum [fire-strength * full-power] of room-patches with [fire?]
       if power >= [flashover-power] of one-of room-patches [ flash-over number ]
     ]
   ]
