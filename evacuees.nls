@@ -42,6 +42,7 @@ evacuees-own [
   helped?            ;; true once a helper has assisted this evacuee
   randomness         ;; chance that a step goes in a random direction instead of the planned one
   step-budget        ;; walking distance saved up for the next step (part of a patch)
+  panic-speed-factor ;; how much faster this evacuee walks in panic (1 to 1.5)
 ]
 
 globals [
@@ -127,6 +128,7 @@ to setup-evacuees
     set helped? false
     set randomness base-randomness
     set step-budget 0
+    set panic-speed-factor 1 + random-float 0.5   ;; proposal: up to 1.5x faster in panic. ASSUMPTION: drawn once per person
     set cognitive-state "unaware"
   ]
 
@@ -355,8 +357,8 @@ end
 
 to-report current-speed  ;; evacuee reporter
   let current speed
-  if helped? [ set current current * helper-speed-factor ]                 ;; helpers make evacuees walk faster
-  if cognitive-state = "panic" [ set current current * (1 + random-float 0.5) ]  ;; panic: up to 1.5x faster
+  if helped? [ set current current * helper-speed-factor ]                 ;; helpers make evacuees walk faster (ASSUMPTION: for the rest of the run)
+  if cognitive-state = "panic" [ set current current * panic-speed-factor ]  ;; panic: up to 1.5x faster
   report current * smoke-slowdown                                          ;; slower in smoke
 end
 
