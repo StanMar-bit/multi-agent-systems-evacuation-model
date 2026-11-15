@@ -192,6 +192,17 @@ to setup-inflammatory-objects
 end
 
 ;; helpers
+;; a row of desks on row y, from x1 to x2 (+ mirror image)
+to desk-row [y x1 x2]
+  ask patches with [pycor = y and object = "floor" and
+      ((pxcor >= x1 and pxcor <= x2) or (pxcor >= (- x2) and pxcor <= (- x1)))] [ mark-as-desk ]
+end
+
+;; a row of desks on row y, from x1 to x2 (NOT mirrored)
+to desk-row-one [y x1 x2]
+  ask patches with [pycor = y and pxcor >= x1 and pxcor <= x2 and object = "floor"] [ mark-as-desk ]
+end
+
 to desk-two [x y]
   ask patches with [(pxcor = x or pxcor = (- x)) and pycor = y and object = "floor"] [ mark-as-desk ]
 end
@@ -295,25 +306,6 @@ to place-objects-upper-rooms
   desk  -18  33
   desk  -18  31
   desk  -18  30
-  
-  ;; big middle top room
-  desk   -8  41
-  desk   -7  41
-  desk   -6 41
-  desk   -5  41
-  desk   -4  41
-  desk   -3  41
-  desk   -2  41
-  desk   -1  41
-  desk   0  41
-  desk   1  41
-  desk   2  41
-  desk   3  41
-  desk   4  41
-  desk   5  41
-  desk   10  41
-  desk   11  41
-  
   ;;top room 3
   ;;row 1
   desk   14  41
@@ -367,8 +359,18 @@ end
 
 ;; AREA 2: INNER PART (central block, hall, around the tall boxes)
 to place-objects-inner-part
-  ;; central block, left room
-  ;;desk   -7  22    ;; central block room
+  ;; central block: toilets and the counter, no desks
+  ;; canteen tables in the hall (were walls before), left group: 5 rows
+  desk-row-one   11  -17  -8
+  desk-row-one    7  -17  -8
+  desk-row-one    4  -17  -8
+  desk-row-one    0  -17  -8
+  desk-row-one   -4  -17  -8
+  ;; canteen tables, right group: 4 rows (no table at y = 4 on this side)
+  desk-row-one   11   14  19
+  desk-row-one    7   14  19
+  desk-row-one    0   14  19
+  desk-row-one   -4   14  19
 end
 
 ;; AREA 3: SIDE ROOMS (the two columns of small rooms)
@@ -438,9 +440,25 @@ end
 
 ;; AREA 4: LOWER ROOMS (the two lower wing rooms)
 to place-objects-lower-rooms
-  desk  -43  -15   ;; lower wing room 1
-  desk  -43  -22   ;; lower wing room 2
-  desk    0  -25   ;; auditorium
+  ;; lower wing, left side: small office desk (the top room is toilets)
+  desk  -48  -27
+  desk  -48  -28
+  ;; lower wing, right side: two meeting rooms with a long table each
+  desk-row-one  -21   40  48
+  desk-row-one  -22   40  48
+  desk-row-one  -27   40  48
+  desk-row-one  -28   40  48
+  ;; auditorium: lecturer tables at the front
+  desk-row  -15   3   5
+  ;; auditorium: rows of seats, aisle in the middle (x -1..1) and at the sides
+  desk-row  -18   2  16
+  desk-row  -20   2  16
+  desk-row  -22   2  16
+  desk-row  -24   2  16
+  desk-row  -26   2  16
+  desk-row  -28   2  16
+  desk-row  -30   2  16
+  desk-row  -32   2  16
 end
 
 ;; ----- AREA 5: OUTSIDE (the free strip around the building) -----
@@ -575,16 +593,6 @@ to build-central-block
   v-wall  -13   18   26 ;; left wall (mirrored at x=13)
   v-wall    0   18   26 ;; middle wall between the two rooms
   v-wall  -13   15   15
-  h-wall-one 11 -17 -10
-  h-wall-one 7 -17 -10
-  h-wall-one 3 -17 -10
-  h-wall-one -1 -17 -10
-  h-wall-one -5 -17 -10
-  h-wall-one 11 14 18
-  h-wall-one 7 14 18
-  h-wall-one 3 14 18
-  h-wall-one -1 14 18
-  h-wall-one -5 14 18
 end
 
 ;; =====================================================================
