@@ -120,10 +120,10 @@ to set-evacuee-parameters
   set companion-search-time 30       ;; ASSUMPTION
   set fire-damage 50                 ;; ASSUMPTION: two seconds in the fire is deadly
   ;; Toxic smoke works as a dose that builds up over time: the Fractional Effective
-  ;; Dose (FED; Purser, 2016; ISO 13571). Carbon monoxide first impairs judgment
+  ;; Dose (FED; Purser & McAllister, 2016; ISO 13571). Carbon monoxide first impairs judgment
   ;; and makes people weak, then they collapse (FED = 1), and later they die.
   set smoke-dose-rate 1 / 90         ;; ASSUMPTION: 90 s in the thickest smoke (smoke = 1) gives FED = 1, collapse
-  set lethal-dose 2                  ;; ASSUMPTION: death at about twice the dose that makes people collapse
+  set lethal-dose 2                  ;; ASSUMPTION: death at about twice the dose that makes people collapse (Purser & McAllister, 2016)
   set toxic-confusion 0.5            ;; ASSUMPTION: at FED = 1 half of the steps are confused (impaired judgment)
   set toxic-weakness 0.3             ;; ASSUMPTION: at FED = 1 people walk 30% slower (dizziness, weakness)
   set smoke-speed-loss 0.5           ;; ASSUMPTION: people walk about half as fast in thick smoke (Jin, 1978; Fridolf et al., 2013)
