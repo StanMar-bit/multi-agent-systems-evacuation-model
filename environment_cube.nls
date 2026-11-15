@@ -480,8 +480,8 @@ to build-doors
   door-v  -36   19   21  blue ;; upper wing room -> hall
   door-v   12   27   27  blue ;; upper rooms middle
   door-v  -36  -16  -14  blue ;; lower wing room 1 -> lobby
-  door-v   36  -23  -23  blue ;; lower wing room (this one is on the right side)
-  door-v   36  -29  -29  blue ;; lower wing room (this one is on the right side)
+  door-v   36  -23  -23  blue ;; lower wing rooms (left and right; the left one is the only way into that room)
+  door-v   36  -29  -29  blue ;; lower wing rooms (left and right)
   door-v  -23  -19  -17  blue ;; auditorium entrance (side)
   ;;right column of small rooms, from the top down (looking from left side of building)
   door-v  -45   14  15  blue
