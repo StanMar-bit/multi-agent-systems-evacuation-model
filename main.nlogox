@@ -79,6 +79,8 @@ end]]></code>
     </chooser>
     <slider x="15" step="1" y="930" max="1000" width="250" display="fire-seed" height="50" min="0" direction="Horizontal" default="0.0" variable="fire-seed"></slider>
     <note x="15" y="985" backgroundDark="0" fontSize="11" width="250" markdown="false" height="35" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">fire-seed 0: a different fire every run. Any other value: the same fire every run.</note>
+    <slider x="15" step="1" y="1025" max="60" width="250" display="wall-fire-resistance" height="50" min="1" direction="Horizontal" default="30.0" variable="wall-fire-resistance" units="min"></slider>
+    <note x="15" y="1080" backgroundDark="0" fontSize="11" width="250" markdown="false" height="35" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">30-60 min: normal fire-rated walls. Lower: light partitions.</note>
     <slider x="15" step="1" y="640" max="8" width="250" display="number-of-helpers" height="50" min="0" direction="Horizontal" default="0.0" variable="number-of-helpers"></slider>
     <slider x="15" step="1" y="695" max="10" width="250" display="helper-range" height="50" min="1" direction="Horizontal" default="5.0" variable="helper-range" units="m"></slider>
     <slider x="15" step="1" y="750" max="10" width="250" display="helper-capacity" height="50" min="1" direction="Horizontal" default="3.0" variable="helper-capacity"></slider>

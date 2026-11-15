@@ -18,9 +18,12 @@
 ;;     Then the whole room burns and flames come out of its doorways.
 ;;     How big the fire must be depends on the room: small rooms with small
 ;;     doors flash over quickly, big halls never do (Thomas' flashover formula).
-;;   - Fire and smoke never go through walls. Real walls between rooms hold
-;;     back fire for 30 to 60 minutes (much longer than a run), so fire and
-;;     smoke spread through doorways and corridors instead.
+;;   - WALLS hold back fire and smoke. A wall next to a fully burning patch
+;;     heats up; after wall-fire-resistance minutes (interface) it fails: fire
+;;     and smoke then go through it and the patches behind it catch fire.
+;;     Real walls between rooms hold back fire for 30 to 60 minutes (Dutch
+;;     building code: WBDBO), light partitions much shorter. People still
+;;     cannot walk through a failed wall.
 ;;
 ;; How the smoke works:
 ;;   - Every burning patch makes smoke, more when its fire is stronger.
@@ -54,6 +57,7 @@ patches-own [
   indoor?         ;; true for every patch inside the building
   room            ;; number of the room this patch is in (-1 for walls, doors and outside)
   flashover-power ;; fire power (kW) at which this patch's room flashes over
+  wall-heat       ;; seconds a wall has had a fully burning patch next to it
   smoke-neighbors ;; the neighbouring patches smoke can flow to (not walls, not outside)
   new-smoke       ;; helper for spread-smoke: the smoke on this patch after this step
 ]
@@ -112,6 +116,7 @@ to setup-fire
     set fire-time 0
     set burned? false
     set smoke 0
+    set wall-heat 0
   ]
   setup-smoke-patches
   setup-rooms
@@ -254,7 +259,10 @@ to grow-and-spread-fire
   ;; 3. A room with a big enough fire flashes over.
   check-flashover
 
-  ;; 4. Show the fire: orange while it grows, red at full strength.
+  ;; 4. Walls next to a fully burning patch heat up, and fail after a while.
+  heat-walls
+
+  ;; 5. Show the fire: orange while it grows, red at full strength.
   ask patches with [fire?] [
     ifelse fire-strength < 1 [ set pcolor orange ] [ set pcolor red ]
   ]
@@ -291,7 +299,7 @@ to flash-over [number]
 end
 
 ;; Catch fire (if not burning yet) and burn at full strength at once, without
-;; the slow start. Used for flashover.
+;; the slow start. Used for flashover and for a wall that fails.
 to burn-at-full-strength  ;; patch procedure
   if not fire? [ catch-fire ]
   set fire-time max list fire-time fire-growth-time
@@ -303,6 +311,38 @@ to catch-fire  ;; patch procedure
   set fire-strength 0
   set fire-time 0
   set pcolor orange
+end
+
+;; Every wall next to a fully burning patch gets one second hotter. After
+;; wall-fire-resistance minutes it fails. (A failed wall that burns does not
+;; heat the wall next to it, so the fire does not run along a wall.)
+to heat-walls
+  let hot-walls (patch-set [neighbors4 with [object = "wall"]] of patches with [fire? and fire-strength = 1 and object != "failed-wall"])
+  ask hot-walls [
+    set wall-heat wall-heat + 1
+    if wall-heat >= wall-fire-resistance * 60 [ wall-fails ]
+  ]
+end
+
+;; The wall no longer holds back fire and smoke. People still cannot walk
+;; through it (blocked? stays true).
+to wall-fails  ;; patch procedure
+  set object "failed-wall"   ;; no longer a "wall": clear-view? and the smoke look through it
+
+  ;; from now on smoke can flow through this patch
+  set smoke-patches (patch-set smoke-patches self)
+  set smoke-neighbors neighbors4 with [member? self smoke-patches]
+  ask smoke-neighbors [ set smoke-neighbors (patch-set smoke-neighbors myself) ]
+
+  ;; The failed wall burns, and its fire counts for the room behind it. Once
+  ;; enough of the wall has failed, a small room behind it flashes over too;
+  ;; a corridor or hall is too big for that and only fills with smoke.
+  let room-behind one-of neighbors4 with [room != -1 and not member? room flashed-over-rooms]
+  if room-behind != nobody [
+    set room [room] of room-behind
+    set flashover-power [flashover-power] of room-behind
+  ]
+  burn-at-full-strength
 end
 
 ;; The fuel is used up. The patch no longer burns, but its smoke stays around.
