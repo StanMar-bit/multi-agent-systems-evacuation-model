@@ -54,6 +54,7 @@ All values as used in the model (`main.nlogox` and the `.nls` files). Scale: 1 p
 | lethal-dose | death at FED 2 (collapse at FED 1) | ASSUMPTION; about twice the incapacitating dose |
 | toxic-confusion | up to 0.5 of the steps confused at FED 1 | ASSUMPTION; carbon monoxide impairs judgment |
 | toxic-weakness | up to 30% slower at FED 1 | ASSUMPTION; dizziness and weakness |
+| heat dose | + 1 / (60 x 5e7 x temperature^-3.4) per s: collapse at 1, death at 2 (about 4 min at 120 C, 45 s at 200 C) | Purser & McAllister (2016); ISO 13571 (convective heat only) |
 | smoke-speed-loss | up to 50% slower in the thickest smoke | Jin (1978); Fridolf et al. (2013) |
 
 ## Helpers (`set-helper-parameters`, helpers.nls)
@@ -90,6 +91,7 @@ All values as used in the model (`main.nlogox` and the `.nls` files). Scale: 1 p
 | carpet-power | 250 kW per burning m2 | ASSUMPTION (a quarter of a desk) |
 | desk-power | 1 MW per burning patch | Workstations burn at 1-3 MW |
 | flashover power | 7.8 x surface area + 378 x open door area x sqrt(door height) kW (1.4-6.7 MW per room with its doors open) | Thomas (1981) |
+| flame-reach | 2 m: after flashover, flames come this far out of an open doorway (corridor floors themselves do not burn) | ASSUMPTION; the fuel that cannot burn inside burns outside the room |
 | air-power | a room fire is at most 1500 kW x open door area x sqrt(door height): 4.6 MW per open 1 m door, 0.2 MW closed | Kawagoe (1958) |
 | door-leakage | the gaps around a closed door count as 4% of the doorway | ASSUMPTION (~1 cm around, ~2 cm under the door) |
 | door-fire-resistance | 10 min: a closed door next to a fully burning patch then burns through | ASSUMPTION; ordinary doors 5-20 min, fire doors 30+ min (EN 1634-1) |
@@ -97,5 +99,8 @@ All values as used in the model (`main.nlogox` and the `.nls` files). Scale: 1 p
 | max-flashover-area | 500 m2 (the central hall never flashes over) | ASSUMPTION |
 | smoke-flow-speed | 1 m/s near the fire, slower beyond 10 m (x 10 / distance) | ASSUMPTION; ceiling jet (Alpert, 1972) |
 | smoke-production / smoke-spread / smoke-spread-steps | 0.25 / 0.8 / 4 | ASSUMPTION; tuned: fire room smoky after 2-3 min |
+| ambient-temperature | 20 C | ASSUMPTION |
+| flame-heat | burning patches are ambient + 800 C (x fire strength) | Flames and flashed-over rooms ~800-900 C (Drysdale, 2011) |
+| heat-loss | hot smoke loses 10% of its heat per s; it travels with the smoke | ASSUMPTION; tuned: ~300 C next to a flashed-over room, ~100 C at 10 m |
 | detector-spacing | 7 m, and at least one detector in every room | ASSUMPTION (one detector per ~50 m2); full coverage as in NEN 2535 |
 | detector-smoke-level | 0.05 | ASSUMPTION; alarm after 36-204 s |

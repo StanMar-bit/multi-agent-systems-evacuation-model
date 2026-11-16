@@ -26,6 +26,8 @@
 ;;      the evacuee confused (wrong turns) and weak (slower); at a dose of 1 it
 ;;      collapses (INCAPACITATED, black) and can no longer move, at a dose of
 ;;      lethal-dose it dies. On a burning patch it dies within seconds (burns).
+;;      Hot air builds up a heat dose in the same way (collapse at 1, death
+;;      at lethal-dose), even where nothing burns: next to a burning room.
 ;;      Dead evacuees count as casualties and are removed.
 ;;
 ;; Variables that evacuees inherit from turtles-own in agents.nls and that are reused here:
@@ -40,6 +42,7 @@ evacuees-own [
   trained?           ;; true if this evacuee had evacuation training
   health             ;; 100 = healthy, 0 or less = dead from burns
   toxic-dose         ;; dose of toxic smoke gases taken in (Fractional Effective Dose): 1 = collapses
+  heat-dose          ;; dose of heat taken in from hot air (Fractional Effective Dose): 1 = collapses
   incapacitated?     ;; true once the toxic dose made this evacuee collapse
   origin-entrance    ;; number of the exit this person came in through (the main entrance)
   companion          ;; the person this evacuee wants to find first, or nobody
@@ -76,7 +79,7 @@ globals [
   companion-search-time     ;; seconds an evacuee looks for its companion before going alone
   fire-damage               ;; health lost per second on a burning patch
   smoke-dose-rate           ;; toxic dose taken in per second in the thickest smoke (smoke = 1)
-  lethal-dose               ;; toxic dose at which an evacuee dies
+  lethal-dose               ;; toxic dose (or heat dose) at which an evacuee dies
   toxic-confusion           ;; chance of a confused (wrong) step at a toxic dose of 1
   toxic-weakness            ;; part of the walking speed lost at a toxic dose of 1
   smoke-speed-loss          ;; part of the walking speed lost in the thickest smoke (smoke = 1)
@@ -156,6 +159,7 @@ to setup-evacuees
     set speed max list 0.5 (random-normal 1.34 0.26)    ;; Table 1: N(1.34, 0.26) m/s, at least 0.5 so nobody stands still
     set health 100
     set toxic-dose 0
+    set heat-dose 0
     set incapacitated? false
     set origin-entrance main-entrance                   ;; ASSUMPTION: everybody came in through the main entrance
     set companion nobody                                ;; companions are chosen below
@@ -582,17 +586,31 @@ end
 ;; Schedule step (6): health
 ;; ---------------------------------------------------------------------------
 
-;; Burns and toxic smoke.
+;; Burns, toxic smoke and heat.
 to update-evacuee-health
   ask evacuees [
     if fire? [ set health health - fire-damage ]              ;; burns: deadly within seconds
     set toxic-dose toxic-dose + smoke * smoke-dose-rate       ;; toxic smoke builds up a dose
-    if toxic-dose >= 1 and not incapacitated? [ collapse ]
-    if health <= 0 or toxic-dose >= lethal-dose [
+    set heat-dose heat-dose + 1 / seconds-to-heat-collapse    ;; hot air builds up a dose too
+    if (toxic-dose >= 1 or heat-dose >= 1) and not incapacitated? [ collapse ]
+    if health <= 0 or toxic-dose >= lethal-dose or heat-dose >= lethal-dose [
       set casualties casualties + 1
       die
     ]
   ]
+end
+
+;; How many seconds of the air temperature where I stand make me collapse
+;; (heat dose 1). Purser's formula for hot air, as in ISO 13571
+;; (Purser & McAllister, 2016):
+;;   minutes = 50,000,000 x temperature (C) ^ -3.4
+;; About 4 minutes at 120 C, 45 seconds at 200 C, 10 seconds at 300 C.
+;; At room temperature it would take more than a day: no effect.
+;; ASSUMPTION: only the hot air counts, not the heat radiated by the smoke
+;; layer above (which mainly matters above ~200 C, where the air already
+;; works within seconds).
+to-report seconds-to-heat-collapse  ;; evacuee reporter
+  report 60 * 50000000 * temperature ^ -3.4
 end
 
 ;; The evacuee collapses: it stays where it is, blocking the patch, until it

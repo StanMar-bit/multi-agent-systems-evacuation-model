@@ -30,13 +30,18 @@
 ;;   - FLASHOVER: walls and doors split the building into rooms. When the fire
 ;;     in a room gets big enough, the hot smoke under the ceiling sets
 ;;     everything in the room on fire at once (chairs, carpet, paper, ...).
-;;     Then the whole room burns and flames come out of its open doorways.
+;;     Then the whole room burns and flames come out of its open doorways,
+;;     about flame-reach metres into the corridor: nobody can pass there, and
+;;     the flames can light fuel nearby. The corridor floor itself does not
+;;     burn: corridors have (almost) no fuel, and escape routes must be lined
+;;     with materials that do not spread fire (Dutch building rules).
 ;;     How big the fire must be depends on the room: small rooms with small
 ;;     doors flash over quickly, big halls never do (Thomas' flashover formula).
 ;;     A closed room does not get enough air to flash over.
 ;;   - CLOSED DOORS hold back the fire like a weak wall: a closed door next to
 ;;     a fully burning patch burns through after door-fire-resistance minutes,
-;;     and is then a hole (smoke, heat and air pass it).
+;;     and is then a hole (smoke, heat and air pass it; flames come out of it
+;;     if the room behind it has flashed over).
 ;;   - WALLS hold back fire and smoke. A wall next to a fully burning patch
 ;;     heats up; after wall-fire-resistance minutes (interface) it fails: smoke
 ;;     flows through it, and the failed wall burns. Its fire counts for the
@@ -63,6 +68,19 @@
 ;;     layer under the ceiling separately.
 ;;   - The darker the grey of a floor patch, the thicker the smoke.
 ;;
+;; How the heat works:
+;;   - Every patch has a temperature. A burning patch is as hot as its flames
+;;     (up to ambient-temperature + flame-heat, about 820 C at full strength).
+;;   - The heat travels with the hot smoke: it flows and mixes in exactly the
+;;     same way, never passes walls or closed doors, and escapes through the
+;;     exit doors. On the way the hot smoke cools down: every second it loses
+;;     a part heat-loss of its heat to the walls and ceiling.
+;;   - So a room that has flashed over is about 800 C, the corridor in front
+;;     of its door is very hot, and far away the smoke is barely warm.
+;;   - ASSUMPTION: like the smoke, one temperature per patch. In reality the
+;;     hot smoke layer under the ceiling is hotter than the air lower down.
+;;   - What the heat does to people is in update-evacuee-health (evacuees.nls).
+;;
 ;; The same fire in every run:
 ;;   - fire-location (interface) picks the desk where the fire starts.
 ;;   - The fire uses its own random numbers, set by fire-seed (interface).
@@ -76,6 +94,7 @@
 ;; The agents read these patch variables:
 ;;   fire?   true while the patch burns (agents cannot walk on it)
 ;;   smoke   smoke density from 0 (clean air) to 1 (thick smoke)
+;;   temperature (reporter)  air temperature in C
 ;; ============================================================================
 
 patches-own [
@@ -90,6 +109,8 @@ patches-own [
   wall-heat       ;; seconds a wall or closed door has had a fully burning patch next to it
   smoke-neighbors ;; the neighbouring patches smoke can flow to (not walls, not outside)
   new-smoke       ;; helper for spread-smoke: the smoke on this patch after this step
+  heat            ;; how much hotter (C) the air on this patch is than ambient-temperature
+  new-heat        ;; helper for spread-smoke: the heat on this patch after this step
   fire-distance   ;; number of steps from this patch to the nearest fire (for the smoke flow)
   downwind        ;; the smoke-neighbors further from the fire: where smoke flows to
 ]
@@ -111,6 +132,7 @@ globals [
   air-power           ;; fire power (kW) the air through 1 m2 of doorway can feed (times the square root of its height)
   door-leakage        ;; the gaps around a closed door, as a part of the doorway (they let a little air in)
   door-fire-resistance ;; minutes a closed door holds back a fully burning fire next to it
+  flame-reach         ;; distance (m) flames reach out of the doorway of a room that has flashed over
 
   ;; ---- the rooms, measured once in setup-rooms (item n is room number n) ----
   room-areas          ;; floor area (m2)
@@ -123,6 +145,11 @@ globals [
   smoke-flow-reach    ;; distance (m) from the fire after which the flow slows down
   smoke-spread        ;; how fast smoke evens out between neighbouring patches (0 to 1)
   smoke-spread-steps  ;; how many times per second the smoke flows and spreads
+
+  ;; ---- values used by the heat (ASSUMPTION: set in set-fire-parameters) ----
+  ambient-temperature ;; temperature (C) of the air before the fire
+  flame-heat          ;; how much hotter (C) than ambient a fully burning patch is
+  heat-loss           ;; part of its heat the hot smoke loses per second to the walls and ceiling
   fire-count-last-smoke-map ;; number of burning patches when the fire distance map was last made
 
   smoke-patches       ;; all patches smoke can be on: inside the building and not a wall
@@ -149,6 +176,7 @@ to set-fire-parameters
   set air-power 1500           ;; Kawagoe (1958): a room fire burns at most ~1500 kW per m2 of opening x square root of its height (m)
   set door-leakage 0.04        ;; ASSUMPTION: gaps of about 1 cm around a closed door and 2 cm under it: ~4% of the doorway
   set door-fire-resistance 10  ;; ASSUMPTION: an ordinary inner door (no fire door) holds back a fire for 5-20 min; a fire door 30+ min (EN 1634-1)
+  set flame-reach 2            ;; ASSUMPTION: after flashover, flames come 1-2 m out of a doorway (the fuel that cannot burn inside burns outside)
   set smoke-flow-speed 1       ;; ASSUMPTION: smoke leaves a burning room at about 1 m/s
   set smoke-flow-reach 10      ;; ASSUMPTION: after about 10 m the smoke cools and slows down (ceiling jet, Alpert)
   ;; ASSUMPTION: these three are chosen so that the room with the fire gets
@@ -156,6 +184,9 @@ to set-fire-parameters
   set smoke-production 0.25
   set smoke-spread 0.8
   set smoke-spread-steps 4
+  set ambient-temperature 20   ;; ASSUMPTION: a normal indoor temperature
+  set flame-heat 800           ;; ASSUMPTION: flames and a flashed-over room are about 800-900 C (Drysdale, 2011)
+  set heat-loss 0.1            ;; ASSUMPTION: chosen so that the hot smoke has cooled to about 100 C some 10 m from a burning room
 end
 
 ;; Called once from setup: nothing burns, then one desk catches fire.
@@ -168,6 +199,7 @@ to setup-fire
     set burned? false
     set carpet? false
     set smoke 0
+    set heat 0
     set wall-heat 0
   ]
   ifelse fire-seed = 0
@@ -454,6 +486,27 @@ to flash-over [number]
   set flashed-over-rooms lput number flashed-over-rooms
   let open-doorways (item number room-doorways) with [not closed-door?]
   ask (patch-set patches with [room = number] open-doorways) with [not burned?] [ burn-at-full-strength ]
+  ask open-doorways [ flames-out-of number ]
+end
+
+;; FLAMES OUT OF THE DOORWAY. A room that has flashed over gets too little air
+;; to burn all its fuel inside, so the rest burns outside it: flames come out
+;; of the doorway and reach flame-reach metres into the corridor (or the room
+;; next door), under the ceiling. The floor there does not burn (corridors
+;; have no fuel), but nobody can walk through those flames, and they can set
+;; fuel nearby on fire. They last as long as the doorway burns.
+to flames-out-of [number]  ;; door patch procedure; number = the room that flashed over
+  ask patches in-radius flame-reach with [
+    object = "floor" and indoor? and room != number and not burned? and clear-view? myself
+  ] [ burn-at-full-strength ]
+end
+
+;; A closed door burns through. If the room behind it has flashed over,
+;; flames now come out of this doorway too.
+to door-burns-through  ;; door patch procedure
+  burn-at-full-strength
+  let flashed-over-side one-of neighbors4 with [member? room flashed-over-rooms]
+  if flashed-over-side != nobody [ flames-out-of [room] of flashed-over-side ]
 end
 
 ;; Catch fire (if not burning yet) and burn at full strength at once, without
@@ -487,7 +540,7 @@ to heat-walls
   ask hot-patches [
     set wall-heat wall-heat + 1
     ifelse closed-door?
-      [ if wall-heat >= door-fire-resistance * 60 [ burn-at-full-strength ] ]   ;; the door burns through
+      [ if wall-heat >= door-fire-resistance * 60 [ door-burns-through ] ]
       [ if wall-heat >= wall-fire-resistance * 60 [ wall-fails ] ]
   ]
 end
@@ -526,36 +579,60 @@ to spread-smoke
   ;; The direction of the flow only changes when the fire grows (or shrinks).
   if count patches with [fire?] != fire-count-last-smoke-map [ make-fire-distance-map ]
 
-  ;; 1. Burning patches make smoke.
+  ;; 1. Burning patches make smoke, and are as hot as their flames.
   ask patches with [fire?] [
     set smoke min list 1 (smoke + smoke-production * fire-strength)
+    set heat max list heat (flame-heat * fire-strength)
   ]
 
   ;; Every step, first all patches work out their new smoke, then all of them
   ;; take it at the same time, so the order of the patches does not matter.
+  ;; The heat travels with the smoke, so it flows and mixes in the same way.
   repeat smoke-spread-steps [
     ;; 2. Smoke flows away from the fire: every patch passes part of its smoke
-    ;;    on to its downwind neighbours (smoke-flow-speed patches per second).
-    ask smoke-patches [ set new-smoke smoke ]
-    ask smoke-patches with [any? downwind] [
-      let flowing smoke * flow-speed-here / smoke-spread-steps
-      set new-smoke new-smoke - flowing
-      let share flowing / count downwind
-      ask downwind [ set new-smoke new-smoke + share ]
+    ;;    (and heat) on to its downwind neighbours (smoke-flow-speed patches per second).
+    ask smoke-patches [
+      set new-smoke smoke
+      set new-heat heat
     ]
-    ask smoke-patches [ set smoke min list 1 new-smoke ]
+    ask smoke-patches with [any? downwind] [
+      let part flow-speed-here / smoke-spread-steps   ;; the part of the smoke that flows on
+      let smoke-share smoke * part / count downwind
+      let heat-share heat * part / count downwind
+      set new-smoke new-smoke - smoke * part
+      set new-heat new-heat - heat * part
+      ask downwind [
+        set new-smoke new-smoke + smoke-share
+        set new-heat new-heat + heat-share
+      ]
+    ]
+    ask smoke-patches [
+      set smoke min list 1 new-smoke
+      set heat min list flame-heat new-heat
+    ]
 
-    ;; 3. Smoke mixes from thick to thin: every patch swaps part of the
-    ;;    difference with each neighbour.
+    ;; 3. Smoke mixes from thick to thin (and heat from hot to cold): every
+    ;;    patch swaps part of the difference with each neighbour.
     ask smoke-patches [
       let difference (sum [smoke] of smoke-neighbors) - (count smoke-neighbors * smoke)
       set new-smoke smoke + (smoke-spread / 4) * difference
+      let heat-difference (sum [heat] of smoke-neighbors) - (count smoke-neighbors * heat)
+      set new-heat heat + (smoke-spread / 4) * heat-difference
     ]
-    ask smoke-patches [ set smoke new-smoke ]
+    ask smoke-patches [
+      set smoke new-smoke
+      set heat new-heat
+    ]
 
-    ;; 4. Smoke escapes to the outside through the exit doors.
-    ask smoke-patches with [object = "door"] [ set smoke 0 ]
+    ;; 4. Smoke and heat escape to the outside through the exit doors.
+    ask smoke-patches with [object = "door"] [
+      set smoke 0
+      set heat 0
+    ]
   ]
+
+  ;; The hot smoke cools down: it loses heat to the walls and ceiling.
+  ask smoke-patches [ set heat heat * (1 - heat-loss) ]
 
   ;; 5. Show the smoke on the floor: the darker the grey, the thicker the smoke.
   ask smoke-patches with [object = "floor" and reachable? and not fire? and not burned?] [
@@ -563,6 +640,11 @@ to spread-smoke
   ]
 end
 
+
+;; The air temperature (C) on this patch.
+to-report temperature  ;; patch reporter (also used by turtles: the temperature where they stand)
+  report ambient-temperature + heat
+end
 
 ;; How fast smoke flows away from the fire on this patch (m/s): full speed
 ;; close to the fire, slower further away because the smoke cools down.
