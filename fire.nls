@@ -18,14 +18,25 @@
 ;;     fire-growth-time seconds. After fire-burn-time seconds its fuel is used
 ;;     up and it is burned out (grey).
 ;;   - Every second, a burning patch can set fuel up to fire-reach metres away
-;;     on fire (heat radiation), but never through a wall. The stronger the
-;;     fire, the bigger the chance. Doors resist fire much longer than desks.
+;;     on fire (heat radiation), but never through a wall or a closed door.
+;;     The stronger the fire, the bigger the chance. An open door (the wooden
+;;     door leaf) resists fire much longer than a desk.
+;;   - AIR: a fire needs oxygen. The fire in a room can only grow as big as
+;;     the air coming in through its doorways can feed: 1500 kW for every m2
+;;     of open doorway, times the square root of its height (Kawagoe, 1958).
+;;     A closed door only lets a little air in through the gaps around it, so
+;;     a fire in a closed room stays small. When someone opens the door, the
+;;     fire gets air and grows again. (Doors: see doors.nls.)
 ;;   - FLASHOVER: walls and doors split the building into rooms. When the fire
 ;;     in a room gets big enough, the hot smoke under the ceiling sets
 ;;     everything in the room on fire at once (chairs, carpet, paper, ...).
-;;     Then the whole room burns and flames come out of its doorways.
+;;     Then the whole room burns and flames come out of its open doorways.
 ;;     How big the fire must be depends on the room: small rooms with small
 ;;     doors flash over quickly, big halls never do (Thomas' flashover formula).
+;;     A closed room does not get enough air to flash over.
+;;   - CLOSED DOORS hold back the fire like a weak wall: a closed door next to
+;;     a fully burning patch burns through after door-fire-resistance minutes,
+;;     and is then a hole (smoke, heat and air pass it).
 ;;   - WALLS hold back fire and smoke. A wall next to a fully burning patch
 ;;     heats up; after wall-fire-resistance minutes (interface) it fails: smoke
 ;;     flows through it, and the failed wall burns. Its fire counts for the
@@ -45,7 +56,9 @@
 ;;     idea as the exit maps in navigation.nls: smoke moves to the
 ;;     neighbouring patches that are further from the fire.
 ;;   - Smoke also mixes with the neighbouring patches, from thick to thin.
-;;   - Smoke never goes through a wall, and escapes outside through the exit doors.
+;;   - Smoke never goes through a wall or a closed door, and escapes outside
+;;     through the exit doors. ASSUMPTION: the little smoke that leaks through
+;;     the gaps around a closed door is ignored.
 ;;   - ASSUMPTION: one smoke value per patch. We do not model the hot smoke
 ;;     layer under the ceiling separately.
 ;;   - The darker the grey of a floor patch, the thicker the smoke.
@@ -53,10 +66,12 @@
 ;; The same fire in every run:
 ;;   - fire-location (interface) picks the desk where the fire starts.
 ;;   - The fire uses its own random numbers, set by fire-seed (interface).
-;;     The people do not change the fire, so two runs with the same fire-seed
-;;     and fire-location get exactly the same fire and smoke, whatever the
-;;     evacuees do. That makes it fair to compare cognitive strategies, alarms
-;;     and helpers. With fire-seed 0 every run gets a different fire.
+;;     Two runs with the same fire-seed and fire-location start with the same
+;;     fire and the same open and closed doors. The people only change the
+;;     fire by opening and closing doors, so as long as they do that in the
+;;     same way, the fire and smoke are exactly the same. That makes it fair
+;;     to compare cognitive strategies, alarms and helpers. With fire-seed 0
+;;     every run gets a different fire.
 ;;
 ;; The agents read these patch variables:
 ;;   fire?   true while the patch burns (agents cannot walk on it)
@@ -72,8 +87,7 @@ patches-own [
   smoke           ;; smoke density from 0 (clean air) to 1 (thick smoke)
   indoor?         ;; true for every patch inside the building
   room            ;; number of the room this patch is in (-1 for walls, doors and outside)
-  flashover-power ;; fire power (kW) at which this patch's room flashes over
-  wall-heat       ;; seconds a wall has had a fully burning patch next to it
+  wall-heat       ;; seconds a wall or closed door has had a fully burning patch next to it
   smoke-neighbors ;; the neighbouring patches smoke can flow to (not walls, not outside)
   new-smoke       ;; helper for spread-smoke: the smoke on this patch after this step
   fire-distance   ;; number of steps from this patch to the nearest fire (for the smoke flow)
@@ -92,8 +106,16 @@ globals [
   carpet-catch-chance ;; chance per second that carpet catches fire from one fully burning desk or door nearby
   ceiling-height      ;; height (m) of the rooms
   door-height         ;; height (m) of the doors
-  max-flashover-area  ;; rooms bigger than this (m2) never flash over
+  max-flashover-area  ;; rooms bigger than this (m2) never flash over and never run out of air
   flashed-over-rooms  ;; list with the numbers of the rooms that have flashed over
+  air-power           ;; fire power (kW) the air through 1 m2 of doorway can feed (times the square root of its height)
+  door-leakage        ;; the gaps around a closed door, as a part of the doorway (they let a little air in)
+  door-fire-resistance ;; minutes a closed door holds back a fully burning fire next to it
+
+  ;; ---- the rooms, measured once in setup-rooms (item n is room number n) ----
+  room-areas          ;; floor area (m2)
+  room-surfaces       ;; surface area (m2): floor, ceiling and walls
+  room-doorways       ;; the door patches around the room (inner doors and exits)
 
   ;; ---- values used by the smoke (ASSUMPTION: set in set-fire-parameters) ----
   smoke-production    ;; smoke a fully burning patch adds per second
@@ -124,6 +146,9 @@ to set-fire-parameters
   set ceiling-height 3         ;; ASSUMPTION
   set door-height 2.1          ;; ASSUMPTION: a normal door; each door patch is 1 m wide
   set max-flashover-area 500   ;; ASSUMPTION: the central hall (~3900 m2, no furniture) is too big to flash over; the biggest room is ~350 m2
+  set air-power 1500           ;; Kawagoe (1958): a room fire burns at most ~1500 kW per m2 of opening x square root of its height (m)
+  set door-leakage 0.04        ;; ASSUMPTION: gaps of about 1 cm around a closed door and 2 cm under it: ~4% of the doorway
+  set door-fire-resistance 10  ;; ASSUMPTION: an ordinary inner door (no fire door) holds back a fire for 5-20 min; a fire door 30+ min (EN 1634-1)
   set smoke-flow-speed 1       ;; ASSUMPTION: smoke leaves a burning room at about 1 m/s
   set smoke-flow-reach 10      ;; ASSUMPTION: after about 10 m the smoke cools and slows down (ceiling jet, Alpert)
   ;; ASSUMPTION: these three are chosen so that the room with the fire gets
@@ -145,15 +170,17 @@ to setup-fire
     set smoke 0
     set wall-heat 0
   ]
+  ifelse fire-seed = 0
+    [ set fire-dice random 1000000 ]   ;; a different fire every run
+    [ set fire-dice fire-seed ]        ;; the same fire every run
+
+  setup-doors                        ;; doors.nls: some doors open, the others closed
   setup-smoke-patches
   setup-rooms
   setup-carpet
   set flashed-over-rooms []
   set fire-count-last-smoke-map -1   ;; the fire distance map is made in the first second
 
-  ifelse fire-seed = 0
-    [ set fire-dice random 1000000 ]   ;; a different fire every run
-    [ set fire-dice fire-seed ]        ;; the same fire every run
   with-local-randomness [
     random-seed fire-dice
     ask fire-start-patch [ catch-fire ]
@@ -188,12 +215,27 @@ to setup-smoke-patches
   ]
 
   set smoke-patches patches with [indoor? and object != "wall"]
-  ask smoke-patches [ set smoke-neighbors neighbors4 with [indoor? and object != "wall"] ]
+  ask smoke-patches [ set smoke-neighbors smoke-routes ]
+end
+
+;; The neighbouring patches smoke can flow to from here: inside the building,
+;; not a wall and not a closed door. A closed door has none: smoke cannot pass it.
+to-report smoke-routes  ;; patch reporter
+  if closed-door? [ report no-patches ]
+  report neighbors4 with [indoor? and object != "wall" and not closed-door?]
+end
+
+;; A door opened or closed, or a wall failed: work out again where smoke can
+;; flow from this patch and from the patches around it.
+to update-smoke-routes  ;; patch procedure
+  set smoke-neighbors smoke-routes
+  ask neighbors4 with [indoor? and object != "wall"] [ set smoke-neighbors smoke-routes ]
+  set fire-count-last-smoke-map -1   ;; the smoke flows another way now: make the fire distance map again
 end
 
 ;; Give every room a number: a room is a group of patches that touch each
-;; other without a wall or door in between. Then work out per room how much
-;; fire power it takes to flash over.
+;; other without a wall or door in between. Then measure every room for the
+;; flashover and air formulas.
 to setup-rooms
   ask patches [ set room -1 ]
   let room-number 0
@@ -201,7 +243,10 @@ to setup-rooms
     ask one-of patches with [in-a-room? and room = -1] [ fill-room room-number ]
     set room-number room-number + 1
   ]
-  foreach range room-number [ number -> set-flashover-power number ]
+  set room-areas []
+  set room-surfaces []
+  set room-doorways []
+  foreach range room-number [ number -> measure-room number ]
 end
 
 ;; Every room with furniture that is not bigger than max-flashover-area gets
@@ -209,7 +254,7 @@ end
 ;; and the closed courtyards get none.
 to setup-carpet
   let carpet-rooms remove-duplicates [room] of patches with [object = "desk" and room != -1]
-  ask patches with [object = "floor" and member? room carpet-rooms and flashover-power != never] [
+  ask patches with [object = "floor" and member? room carpet-rooms and not big-room? room] [
     set carpet? true
     set inflammatory? true
   ]
@@ -240,25 +285,59 @@ to fill-room [number]  ;; patch procedure
   ]
 end
 
-;; The fire power a room needs to flash over, with Thomas' formula
-;; (Thomas, 1981):
-;;   power (kW) = 7.8 x surface area of the room (m2)
-;;              + 378 x door area (m2) x square root of the door height (m)
-;; The surface area is the floor, the ceiling and the walls. A big room loses
-;; more heat to its walls and big doors let more heat out, so both need a
-;; bigger fire before flashover.
-;; ASSUMPTION: a space bigger than max-flashover-area (the central hall with
-;; its corridors) never flashes over: it has no furniture and the smoke
-;; spreads out and cools down.
-to set-flashover-power [number]
+;; Measure room 'number': its floor area, its surface area (the floor, the
+;; ceiling and the walls, without the doorways) and the doors around it.
+to measure-room [number]
   let room-patches patches with [room = number]
+  let doorway-patches patches with [door? and any? neighbors4 with [room = number]]
   let floor-area count room-patches
   let wall-length count room-patches with [any? neighbors4 with [object = "wall" or door?]]
-  let door-area door-height * count patches with [door? and any? neighbors4 with [room = number]]
-  let surface-area (2 * floor-area) + (wall-length * ceiling-height) - door-area
-  let power (7.8 * surface-area) + (378 * door-area * sqrt door-height)
-  if floor-area > max-flashover-area [ set power never ]
-  ask room-patches [ set flashover-power power ]
+  let surface-area (2 * floor-area) + (wall-length * ceiling-height) - (door-height * count doorway-patches)
+  set room-areas lput floor-area room-areas
+  set room-surfaces lput surface-area room-surfaces
+  set room-doorways lput doorway-patches room-doorways
+end
+
+;; ASSUMPTION: a space bigger than max-flashover-area (the central hall with
+;; its corridors) never flashes over: it has no furniture and the smoke
+;; spreads out and cools down. It also has so much air that its fire never
+;; runs out of it.
+to-report big-room? [number]
+  report item number room-areas > max-flashover-area
+end
+
+;; The open doorway area (m2) of room 'number'. Every door patch is 1 m wide.
+;; A closed door still counts for a small part (door-leakage): the gaps around it.
+to-report open-doorway-area [number]
+  let doorway-patches item number room-doorways
+  let open-patches count doorway-patches with [not closed-door?]
+  let closed-patches count doorway-patches with [closed-door?]
+  report door-height * (open-patches + door-leakage * closed-patches)
+end
+
+;; The fire power (kW) a room needs to flash over, with Thomas' formula
+;; (Thomas, 1981):
+;;   power (kW) = 7.8 x surface area of the room (m2)
+;;              + 378 x open doorway area (m2) x square root of the door height (m)
+;; A big room loses more heat to its walls and open doors let more heat out,
+;; so both need a bigger fire before flashover.
+to-report flashover-power [number]
+  if big-room? number [ report never ]
+  report (7.8 * item number room-surfaces) + (378 * open-doorway-area number * sqrt door-height)
+end
+
+;; The biggest fire (kW) the air coming in through the doorways can feed
+;; (Kawagoe, 1958):
+;;   power (kW) = 1500 x open doorway area (m2) x square root of the door height (m)
+;; Example: one open door of 1 x 2.1 m feeds about 4.6 MW, enough for a small
+;; room to flash over. The same door closed feeds only about 0.2 MW.
+to-report air-limit [number]
+  report air-power * open-doorway-area number * sqrt door-height
+end
+
+;; The fire power (kW) of everything that burns in room 'number' right now.
+to-report room-fire-power [number]
+  report sum [fire-strength * full-power] of patches with [fire? and room = number]
 end
 
 ;; A fire power no fire in this building can reach: "never flashes over".
@@ -281,17 +360,21 @@ end
 
 ;; The basic rule "burning patches set nearby fuel on fire with some chance"
 ;; is the classic rule of the NetLogo Fire model (Wilensky, 1997) and Fire
-;; Simple Extension 1 (Wilensky, 2006). Growth, flashover, wall failure and
-;; the smoke are our own.
+;; Simple Extension 1 (Wilensky, 2006). Growth, air, flashover, wall and door
+;; failure and the smoke are our own.
 to grow-and-spread-fire
-  ;; 1. Every burning patch grows stronger, and burns out when its fuel is used up.
+  ;; 1. Every burning patch grows stronger (from 0 to full strength in
+  ;;    fire-growth-time seconds), and burns out when its fuel is used up.
   ask patches with [fire?] [
     set fire-time fire-time + 1
-    set fire-strength min list 1 (fire-time / fire-growth-time)
+    set fire-strength min list 1 (fire-strength + 1 / fire-growth-time)
     if fire-time >= fire-burn-time [ burn-out ]
   ]
 
-  ;; 2. Fuel near a burning patch can catch fire, but not through a wall.
+  ;; 2. A room fire can only be as big as the air through its doorways can feed.
+  limit-fire-by-air
+
+  ;; 3. Fuel near a burning patch can catch fire, but not through a wall or a closed door.
   ;;    (Patches that catch fire now only start spreading in the next second.)
   ask patches with [fire?] [
     let strength fire-strength
@@ -303,27 +386,51 @@ to grow-and-spread-fire
     ]
   ]
 
-  ;; 3. A room with a big enough fire flashes over.
+  ;; 4. A room with a big enough fire flashes over.
   check-flashover
 
-  ;; 4. Walls next to a fully burning patch heat up, and fail after a while.
+  ;; 5. Walls and closed doors next to a fully burning patch heat up, and fail after a while.
   heat-walls
 
-  ;; 5. Show the fire: orange while it grows, red at full strength.
+  ;; 6. Show the fire: orange while it grows (or lacks air), red at full strength.
   ask patches with [fire?] [
     ifelse fire-strength < 1 [ set pcolor orange ] [ set pcolor red ]
   ]
 end
 
-;; A patch that has fuel left and is not burning yet.
+;; A fire needs air. When a room's fire is bigger than the air through its
+;; doorways can feed (air-limit), every fire in that room burns weaker, so
+;; that together they are just as big as the air allows. A fire in a closed
+;; room therefore stays small, spreads slowly and makes less smoke. Once a
+;; door opens, the fire grows again (step 1: at most from 0 to full strength
+;; in fire-growth-time seconds).
+;; After flashover the room burns at full strength anyway: what cannot burn
+;; inside burns in the flames that come out of the open doorways.
+;; ASSUMPTION: we ignore the air that is already in the room. In reality a
+;; fire in a closed room can first grow for a minute or two on that air.
+to limit-fire-by-air
+  foreach remove-duplicates [room] of patches with [fire? and room != -1] [ number ->
+    if not big-room? number and not member? number flashed-over-rooms [
+      let power room-fire-power number
+      let limit air-limit number
+      if power > limit [
+        ask patches with [fire? and room = number] [ set fire-strength fire-strength * limit / power ]
+      ]
+    ]
+  ]
+end
+
+;; A patch that has fuel left and is not burning yet. A closed door does not
+;; catch fire from heat radiation: it holds back the fire until it burns
+;; through (see heat-walls).
 to-report can-catch-fire?  ;; patch reporter
-  report inflammatory? and not fire? and not burned?
+  report inflammatory? and not fire? and not burned? and not closed-door?
 end
 
 ;; The chance per second that this patch catches fire from one fully burning patch nearby.
 to-report catch-chance  ;; patch reporter
   if carpet? [ report carpet-catch-chance ]
-  if door? [ report door-catch-chance ]
+  if door? [ report door-catch-chance ]   ;; an open door: the wooden door leaf standing open
   report desk-catch-chance
 end
 
@@ -335,23 +442,22 @@ end
 to check-flashover
   foreach remove-duplicates [room] of patches with [fire? and room != -1] [ number ->
     if not member? number flashed-over-rooms [
-      let room-patches patches with [room = number]
-      let power sum [fire-strength * full-power] of room-patches with [fire?]
-      if power >= [flashover-power] of one-of room-patches [ flash-over number ]
+      if room-fire-power number >= flashover-power number [ flash-over number ]
     ]
   ]
 end
 
 ;; Everything in the room catches fire at once and burns at full strength,
-;; and flames come out of the doorways of the room.
+;; and flames come out of the open doorways of the room. Closed doors hold
+;; back the fire until they burn through (see heat-walls).
 to flash-over [number]
   set flashed-over-rooms lput number flashed-over-rooms
-  let room-doors patches with [door? and any? neighbors4 with [room = number]]
-  ask (patch-set patches with [room = number] room-doors) with [not burned?] [ burn-at-full-strength ]
+  let open-doorways (item number room-doorways) with [not closed-door?]
+  ask (patch-set patches with [room = number] open-doorways) with [not burned?] [ burn-at-full-strength ]
 end
 
 ;; Catch fire (if not burning yet) and burn at full strength at once, without
-;; the slow start. Used for flashover and for a wall that fails.
+;; the slow start. Used for flashover, and for a wall or closed door that fails.
 to burn-at-full-strength  ;; patch procedure
   if not fire? [ catch-fire ]
   set fire-time max list fire-time fire-growth-time
@@ -359,20 +465,30 @@ to burn-at-full-strength  ;; patch procedure
 end
 
 to catch-fire  ;; patch procedure
+  ;; a closed door that burns is a hole from now on: smoke, heat and air pass it
+  if closed-door? [
+    set door-open? true
+    update-smoke-routes
+  ]
   set fire? true
   set fire-strength 0
   set fire-time 0
   set pcolor orange
 end
 
-;; Every wall next to a fully burning patch gets one second hotter. After
-;; wall-fire-resistance minutes it fails. (A failed wall that burns does not
-;; heat the wall next to it, so the fire does not run along a wall.)
+;; Every wall and closed door next to a fully burning patch gets one second
+;; hotter. A wall fails after wall-fire-resistance minutes, a closed door
+;; burns through after door-fire-resistance minutes. (A failed wall that burns
+;; does not heat the wall next to it, so the fire does not run along a wall.)
+;; A fire that lacks air never burns at full strength, so it does not heat
+;; the walls and doors of its room.
 to heat-walls
-  let hot-walls (patch-set [neighbors4 with [object = "wall"]] of patches with [fire? and fire-strength = 1 and object != "failed-wall"])
-  ask hot-walls [
+  let hot-patches (patch-set [neighbors4 with [object = "wall" or closed-door?]] of patches with [fire? and fire-strength = 1 and object != "failed-wall"])
+  ask hot-patches [
     set wall-heat wall-heat + 1
-    if wall-heat >= wall-fire-resistance * 60 [ wall-fails ]
+    ifelse closed-door?
+      [ if wall-heat >= door-fire-resistance * 60 [ burn-at-full-strength ] ]   ;; the door burns through
+      [ if wall-heat >= wall-fire-resistance * 60 [ wall-fails ] ]
   ]
 end
 
@@ -383,17 +499,13 @@ to wall-fails  ;; patch procedure
 
   ;; from now on smoke can flow through this patch
   set smoke-patches (patch-set smoke-patches self)
-  set smoke-neighbors neighbors4 with [member? self smoke-patches]
-  ask smoke-neighbors [ set smoke-neighbors (patch-set smoke-neighbors myself) ]
+  update-smoke-routes
 
   ;; The failed wall burns, and its fire counts for the room behind it. Once
   ;; enough of the wall has failed, a small room behind it flashes over too;
   ;; a corridor or hall is too big for that and only fills with smoke.
   let room-behind one-of neighbors4 with [room != -1 and not member? room flashed-over-rooms]
-  if room-behind != nobody [
-    set room [room] of room-behind
-    set flashover-power [flashover-power] of room-behind
-  ]
+  if room-behind != nobody [ set room [room] of room-behind ]
   burn-at-full-strength
 end
 
@@ -480,16 +592,17 @@ end
 ;; Line of sight
 ;; ---------------------------------------------------------------------------
 
-;; True when no wall stands on the straight line between me and the target
-;; (a patch or a turtle). Used for heat radiation and for seeing flames.
-;; We walk along the line in steps of half a patch and look for a wall.
+;; True when no wall or closed door stands on the straight line between me and
+;; the target (a patch or a turtle). Used for heat radiation and for seeing
+;; flames and exits. Through an open door you can see, and heat goes through.
+;; We walk along the line in steps of half a patch and look for a wall or closed door.
 to-report clear-view? [target]  ;; patch or turtle reporter
   let total-distance distance target
   if total-distance = 0 [ report true ]
   let direction towards target
   let travelled 0.5
   while [travelled < total-distance] [
-    if [object = "wall"] of patch-at-heading-and-distance direction travelled [ report false ]
+    if [object = "wall" or closed-door?] of patch-at-heading-and-distance direction travelled [ report false ]
     set travelled travelled + 0.5
   ]
   report true

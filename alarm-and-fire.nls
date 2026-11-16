@@ -14,7 +14,9 @@
 ;;
 ;; The alarm goes off as soon as one of the smoke detectors measures enough
 ;; smoke. ASSUMPTION: there is a smoke detector on the ceiling every
-;; detector-spacing metres, in rooms and corridors alike.
+;; detector-spacing metres, in rooms and corridors alike, and every room has
+;; at least one (full coverage, as the Dutch standard NEN 2535 asks). That
+;; matters when a door is closed: the smoke then stays in the room.
 ;; ============================================================================
 
 globals [
@@ -38,6 +40,16 @@ to setup-alarm
   set smoke-detectors patches with [
     object = "floor" and reachable? and indoor? and
     pxcor mod detector-spacing = 0 and pycor mod detector-spacing = 0
+  ]
+
+  ;; A small room can fall between the grid points: give it one detector in
+  ;; the middle. (room comes from setup-rooms in fire.nls.)
+  foreach range length room-areas [ number ->
+    let room-floor patches with [room = number and object = "floor" and reachable?]
+    if any? room-floor and not any? smoke-detectors with [room = number] [
+      let middle min-one-of room-floor [distancexy (mean [pxcor] of room-floor) (mean [pycor] of room-floor)]
+      set smoke-detectors (patch-set smoke-detectors middle)
+    ]
   ]
 end
 

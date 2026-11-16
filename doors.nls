@@ -1,0 +1,172 @@
+;; ============================================================================
+;; DOORS: open or closed
+;;
+;; Every inner door (object "intermediate-door") is open or closed. A door that
+;; is two or three patches wide counts as one door (a double door): it opens
+;; and closes as a whole. Exit doors (object "door") always stay open: people
+;; stream out through them.
+;;
+;; What a door does:
+;;   OPEN door (light blue)
+;;     - smoke flows through it,
+;;     - heat radiation goes through it, so the fire can spread through it,
+;;     - air comes in through it, so a fire in the room can grow big and
+;;       flash over (then flames come out of the open doorway),
+;;     - people can see through it.
+;;   CLOSED door (blue)
+;;     - holds back smoke and heat radiation, and blocks the view,
+;;     - lets only a little air in through the gaps around it, so a fire in a
+;;       closed room stays small (it runs out of air) and cannot flash over,
+;;     - does not catch fire from heat radiation: like a wall, it holds back
+;;       a fully burning fire next to it for door-fire-resistance minutes, then
+;;       it burns through and becomes a hole (see heat-walls in fire.nls).
+;;   How the doors change the fire and smoke is in fire.nls.
+;;
+;; What people do with doors:
+;;   - At the start, a share doors-open-at-start (interface) of the inner doors
+;;     is open, the rest is closed. Which doors are open is chosen with the
+;;     fire's own random numbers, so the same fire-seed gives the same doors.
+;;   - Doors are never locked: walking into a closed door opens it.
+;;     ASSUMPTION: opening a door takes no extra time.
+;;   - Right after walking through a door, a person may close it behind them
+;;     (if the close-doors? switch is on). Fire-safety advice (for example the
+;;     Dutch fire service: "close the doors behind you") is to do this,
+;;     because a closed door keeps fire and smoke in the room. Trained people
+;;     do it more often than untrained people, panicking people never, and
+;;     helpers (trained staff) always.
+;;   - Nobody closes a door while someone else is in the doorway or close to
+;;     it: they leave it open for the people behind them.
+;;   - A burning door can no longer be closed.
+;; ============================================================================
+
+patches-own [
+  door-open?   ;; for inner doors: true while the door is open
+  doorway      ;; for inner doors: all patches of this door (a double door is one door); no-patches for other patches
+]
+
+globals [
+  doorways     ;; list of all inner doors; each door is a patch-set of door patches that touch each other
+
+  ;; ---- values used by the doors (ASSUMPTION: set in set-door-parameters) ----
+  trained-door-closing    ;; chance that a trained evacuee closes a door behind them
+  untrained-door-closing  ;; the same for an untrained evacuee
+  helper-door-closing     ;; the same for a helper
+  door-holding-distance   ;; nobody closes a door while someone else is this close (m) to it
+]
+
+
+;; ---------------------------------------------------------------------------
+;; Setup
+;; ---------------------------------------------------------------------------
+
+to set-door-parameters
+  set trained-door-closing 0.8   ;; ASSUMPTION: training teaches people to close doors behind them; most do
+  set untrained-door-closing 0.3 ;; ASSUMPTION: most untrained people just walk on and leave the door open
+  set helper-door-closing 1      ;; ASSUMPTION: helpers are trained staff (fire wardens) and close every door they pass
+  set door-holding-distance 2    ;; ASSUMPTION: someone within 2 m (two steps) of the door is "right behind me"
+end
+
+;; Called from setup-fire (fire.nls), after fire-dice is set and before the
+;; smoke patches are made (smoke cannot pass closed doors).
+to setup-doors
+  set-door-parameters
+  ask patches [
+    set door-open? false
+    set doorway no-patches
+  ]
+
+  ;; Group door patches that touch each other into one door, like the exits
+  ;; in find-exits (navigation.nls).
+  set doorways []
+  let ungrouped patches with [inner-door?]
+  while [any? ungrouped] [
+    let this-door [touching-door-patches] of first sort ungrouped
+    set doorways lput this-door doorways
+    set ungrouped ungrouped with [not member? self this-door]
+  ]
+
+  ;; Open the share doors-open-at-start of the doors, chosen with the fire's own
+  ;; random numbers: the same fire-seed gives the same open and closed doors.
+  with-local-randomness [
+    random-seed fire-dice
+    foreach doorways [ this-door ->
+      let open? random-float 1 < doors-open-at-start
+      ask this-door [
+        set doorway this-door
+        set door-open? open?
+        show-door
+      ]
+    ]
+  ]
+end
+
+;; This door patch and all inner door patches that touch it.
+to-report touching-door-patches  ;; patch reporter
+  let this-door (patch-set self)
+  let previous-size 0
+  while [count this-door > previous-size] [
+    set previous-size count this-door
+    set this-door (patch-set this-door [neighbors4 with [inner-door?]] of this-door)
+  ]
+  report this-door
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Patch reporters and procedures
+;; ---------------------------------------------------------------------------
+
+;; A door inside the building (not an exit).
+to-report inner-door?  ;; patch reporter
+  report object = "intermediate-door"
+end
+
+;; A closed inner door. A door that burns, or has burned, is a hole: not closed.
+to-report closed-door?  ;; patch reporter
+  report inner-door? and not door-open? and not fire? and not burned?
+end
+
+to open-door  ;; door patch procedure
+  if door-open? [ stop ]
+  set door-open? true
+  show-door
+  update-smoke-routes   ;; fire.nls: smoke can flow through this patch again
+end
+
+to close-door  ;; door patch procedure
+  if not door-open? [ stop ]
+  set door-open? false
+  show-door
+  update-smoke-routes   ;; fire.nls: smoke can no longer flow through this patch
+end
+
+;; Light blue for an open door, blue for a closed door.
+;; (Burning and burned-out doors get the colours of the fire.)
+to show-door  ;; door patch procedure
+  if fire? or burned? [ stop ]
+  ifelse door-open? [ set pcolor blue + 3 ] [ set pcolor blue ]
+end
+
+
+;; ---------------------------------------------------------------------------
+;; Turtle procedures: closing a door behind you
+;; (Opening is in step-to in navigation.nls: walking into a closed door opens it.)
+;; ---------------------------------------------------------------------------
+
+;; I just walked through this door. Do I close it behind me?
+;; ASSUMPTION: closing a door takes no extra time.
+to maybe-close-door [this-door]  ;; turtle procedure (evacuees and helpers)
+  if not close-doors? [ stop ]
+  if any? this-door with [fire? or burned?] [ stop ]   ;; a burning door cannot be closed
+  ;; someone else is in the doorway or right behind me: leave the door open for them
+  let people-near-door other (turtle-set [turtles in-radius door-holding-distance] of this-door)
+  if any? people-near-door [ stop ]
+  if random-float 1 < door-closing-chance [ ask this-door [ close-door ] ]
+end
+
+;; The chance that I close a door behind me.
+to-report door-closing-chance  ;; turtle reporter
+  if is-helper? self [ report helper-door-closing ]
+  if cognitive-state = "panic" [ report 0 ]   ;; panicking people just run
+  ifelse trained? [ report trained-door-closing ] [ report untrained-door-closing ]
+end

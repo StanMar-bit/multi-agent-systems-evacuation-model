@@ -23,6 +23,8 @@ All values as used in the model (`main.nlogox` and the `.nls` files). Scale: 1 p
 | fire-location | random desk, north-west office, north classroom, auditorium (random desk) | Scenario control |
 | fire-seed | 0-1000 (0 = new fire every run) | Same fire across conditions (common random numbers) |
 | wall-fire-resistance | 1-60 min (30) | Fire-rated interior walls hold 30-60 min (Dutch building code, WBDBO) |
+| doors-open-at-start | 0-1 (0.5) | Share of the inner doors open at the start (chosen with the fire's random numbers) |
+| close-doors? | on / off (on) | People may close a door behind them; fire-safety advice to do so |
 
 ## Evacuees (`set-evacuee-parameters`, evacuees.nls)
 
@@ -63,6 +65,17 @@ All values as used in the model (`main.nlogox` and the `.nls` files). Scale: 1 p
 | helped-randomness-factor | 0.5 (half as many random steps) | ASSUMPTION |
 | helper-calming | -0.05 arousal per second of help | ASSUMPTION |
 
+## Doors (`set-door-parameters`, doors.nls)
+
+| Parameter | Value | Source / motivation |
+|---|---|---|
+| trained-door-closing | 0.8 chance to close a door behind you | ASSUMPTION; training teaches to close doors (fire service advice) |
+| untrained-door-closing | 0.3 | ASSUMPTION; most people leave doors open |
+| helper-door-closing | 1 (helpers close every door they pass) | ASSUMPTION; trained staff (fire wardens) |
+| panicking evacuees | never close a door | ASSUMPTION |
+| door-holding-distance | 2 m: nobody closes a door while someone else is this close to it | ASSUMPTION |
+| exit doors | always open | ASSUMPTION; people stream out through them |
+
 ## Fire and smoke (`set-fire-parameters`, fire.nls) and alarm (alarm-and-fire.nls)
 
 | Parameter | Value | Source / motivation |
@@ -72,14 +85,17 @@ All values as used in the model (`main.nlogox` and the `.nls` files). Scale: 1 p
 | fire-burn-time | 1800 s | Office fire load ~420 MJ/m2 at ~250 kW/m2 (Eurocode EN 1991-1-2) |
 | fire-reach | 2 m (heat radiation), never through walls | ASSUMPTION |
 | desk-catch-chance | 0.02 per s from one fully burning patch | ASSUMPTION (~1 min to the next desk) |
-| door-catch-chance | 0.002 per s | ASSUMPTION (doors resist 10x longer) |
+| door-catch-chance | 0.002 per s, open doors only (closed doors burn through instead) | ASSUMPTION (doors resist 10x longer) |
 | carpet-catch-chance | 0.002 per s, only from burning furniture or doors (not from other carpet) | ASSUMPTION; floor coverings need strong radiant heat to keep burning (EN 13501-1) |
 | carpet-power | 250 kW per burning m2 | ASSUMPTION (a quarter of a desk) |
 | desk-power | 1 MW per burning patch | Workstations burn at 1-3 MW |
-| flashover power | 7.8 x surface area + 378 x door area x sqrt(door height) kW (1.4-6.7 MW per room) | Thomas (1981) |
+| flashover power | 7.8 x surface area + 378 x open door area x sqrt(door height) kW (1.4-6.7 MW per room with its doors open) | Thomas (1981) |
+| air-power | a room fire is at most 1500 kW x open door area x sqrt(door height): 4.6 MW per open 1 m door, 0.2 MW closed | Kawagoe (1958) |
+| door-leakage | the gaps around a closed door count as 4% of the doorway | ASSUMPTION (~1 cm around, ~2 cm under the door) |
+| door-fire-resistance | 10 min: a closed door next to a fully burning patch then burns through | ASSUMPTION; ordinary doors 5-20 min, fire doors 30+ min (EN 1634-1) |
 | ceiling / door height | 3 m / 2.1 m | ASSUMPTION |
 | max-flashover-area | 500 m2 (the central hall never flashes over) | ASSUMPTION |
 | smoke-flow-speed | 1 m/s near the fire, slower beyond 10 m (x 10 / distance) | ASSUMPTION; ceiling jet (Alpert, 1972) |
 | smoke-production / smoke-spread / smoke-spread-steps | 0.25 / 0.8 / 4 | ASSUMPTION; tuned: fire room smoky after 2-3 min |
-| detector-spacing | 7 m | ASSUMPTION (one detector per ~50 m2) |
+| detector-spacing | 7 m, and at least one detector in every room | ASSUMPTION (one detector per ~50 m2); full coverage as in NEN 2535 |
 | detector-smoke-level | 0.05 | ASSUMPTION; alarm after 36-204 s |

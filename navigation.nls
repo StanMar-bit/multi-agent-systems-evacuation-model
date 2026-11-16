@@ -49,7 +49,8 @@ end
 ;; ---------------------------------------------------------------------------
 
 ;; Exit doors are made in environment.nls with object "door".
-;; (Classroom doors are "intermediate-door"; they are normal walkable patches.)
+;; (Classroom doors are "intermediate-door"; they are walkable patches, also
+;; when closed: people open a closed door when they walk through it.)
 to-report exit-door?
   report object = "door"
 end
@@ -245,8 +246,13 @@ end
 
 ;; Move to a neighbouring patch and look in the direction of the step
 ;; (followers use these headings to see where other people are going).
+;; Walking into a closed door opens it; right after walking through a door,
+;; the agent may close it behind them (doors.nls).
 to step-to [target-patch]
+  let door-behind-me doorway   ;; the door I am standing in (no-patches if I am not in a doorway)
   set step-length distance target-patch   ;; 1 for a normal step, 1.41 for a diagonal step
   face target-patch
+  if [closed-door?] of target-patch [ ask [doorway] of target-patch [ open-door ] ]
   move-to target-patch
+  if any? door-behind-me and not inner-door? [ maybe-close-door door-behind-me ]
 end

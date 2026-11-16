@@ -5,6 +5,7 @@
   "environment_cube.nls" ;; floor plan: walls, doors and desks
   "alarm-and-fire.nls"   ;; the alarm
   "fire.nls"             ;; fire and smoke
+  "doors.nls"            ;; doors: open or closed, and people closing them
   "navigation.nls"       ;; exits, distance maps and taking steps
   "evacuees.nls"         ;; evacuee agents
   "helpers.nls"          ;; helper agents
@@ -75,6 +76,10 @@ end]]></code>
     <note x="275" y="355" backgroundDark="0" fontSize="11" width="250" markdown="false" height="35" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">fire-seed 0: a different fire every run. Any other value: the same fire every run.</note>
     <slider x="275" step="1" y="395" max="60" width="250" display="wall-fire-resistance" height="50" min="1" direction="Horizontal" default="30.0" variable="wall-fire-resistance" units="min"></slider>
     <note x="275" y="450" backgroundDark="0" fontSize="11" width="250" markdown="false" height="35" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">30-60 min: normal fire-rated walls. Lower: light partitions.</note>
+    <note x="275" y="500" backgroundDark="0" fontSize="12" width="250" markdown="false" height="20" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">DOORS</note>
+    <slider x="275" step="0.1" y="525" max="1" width="250" display="doors-open-at-start" height="50" min="0" direction="Horizontal" default="0.5" variable="doors-open-at-start"></slider>
+    <switch x="275" y="580" height="40" on="true" variable="close-doors?" width="250" display="close-doors?"></switch>
+    <note x="275" y="625" backgroundDark="0" fontSize="11" width="250" markdown="false" height="50" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">Light blue: open door, blue: closed door. People open doors they walk through; with close-doors? on they may close them behind them.</note>
     <slider x="275" step="1" y="35" max="8" width="250" display="number-of-helpers" height="50" min="0" direction="Horizontal" default="0.0" variable="number-of-helpers"></slider>
     <slider x="275" step="1" y="90" max="10" width="250" display="helper-range" height="50" min="1" direction="Horizontal" default="5.0" variable="helper-range" units="m"></slider>
     <slider x="275" step="1" y="145" max="10" width="250" display="helper-capacity" height="50" min="1" direction="Horizontal" default="3.0" variable="helper-capacity"></slider>
@@ -128,17 +133,19 @@ end]]></code>
 
 An agent-based model of the evacuation of the ground floor (level 0) of the Cube building at Tilburg University during a fire. It asks: *how do cognitive decision-making strategies under varying arousal levels affect reaction times and overall evacuation efficiency?*
 
-Evacuees have an arousal level A (0 = calm, 1 = maximum) that selects one of four cognitive states: **rational**, **familiar**, **follower** or **panic**. Helpers guide evacuees, and an alarm (none, slow whoop or voice) makes people aware. A fire with smoke grows from one desk and can flash over a whole room.
+Evacuees have an arousal level A (0 = calm, 1 = maximum) that selects one of four cognitive states: **rational**, **familiar**, **follower** or **panic**. Helpers guide evacuees, and an alarm (none, slow whoop or voice) makes people aware. A fire with smoke grows from one desk and can flash over a whole room. Inner doors are open or closed, and people can close doors behind them.
 
 ## HOW IT WORKS
 
 Scale: 1 patch = 1 m, 1 tick = 1 s. Each tick: (1) fire and smoke spread, (2) smoke detectors and alarm, (3) evacuees perceive and update arousal and state, (4) helpers instruct, (5) everybody moves (at most one person per patch; whoever is closest to an exit moves first), (6) health and counts are updated. A run stops when nobody is left inside or after max-duration ticks.
 
-**Fire (fire.nls).** Only fuel burns: desks, doors, and the carpet in furnished rooms, which only catches fire from burning furniture or doors (not from other carpet) and burns weakly. A burning patch grows to full strength in 2 minutes and burns for 30 minutes, and can set fuel up to 2 m away on fire, never through a wall. Walls and doors split the building into rooms. When the fire power in a room reaches the flashover power of that room (Thomas' formula from its surface and door area), the whole room burns and flames come out of its doorways. Rooms over 500 m2 (the central hall) never flash over. A wall next to a fully burning patch fails after wall-fire-resistance minutes.
+**Fire (fire.nls).** Only fuel burns: desks, doors, and the carpet in furnished rooms, which only catches fire from burning furniture or doors (not from other carpet) and burns weakly. A burning patch grows to full strength in 2 minutes and burns for 30 minutes, and can set fuel up to 2 m away on fire, never through a wall. Walls and doors split the building into rooms. A fire needs air: the fire in a room can only grow as big as the air coming in through its doorways can feed (1500 kW per m2 of open doorway times the square root of its height; Kawagoe, 1958), so a fire in a closed room stays small. When the fire power in a room reaches the flashover power of that room (Thomas' formula from its surface and open door area), the whole room burns and flames come out of its open doorways. Rooms over 500 m2 (the central hall) never flash over and never run out of air. A wall next to a fully burning patch fails after wall-fire-resistance minutes, a closed door burns through after 10 minutes.
 
-**Smoke (fire.nls).** Burning patches make smoke. Smoke flows away from the fire (1 m/s near the fire, slower further away as it cools), mixes with neighbouring patches, piles up in dead ends, never passes walls, and escapes through the exit doors. Smoke cuts vision and slows walking (up to half speed). It also builds up a toxic dose (mostly carbon monoxide; Fractional Effective Dose): the dose makes people confused (wrong turns) and weak, at a dose of 1 they collapse (black) and can no longer move, at a dose of 2 they die.
+**Smoke (fire.nls).** Burning patches make smoke. Smoke flows away from the fire (1 m/s near the fire, slower further away as it cools), mixes with neighbouring patches, piles up in dead ends, never passes walls or closed doors, and escapes through the exit doors. Smoke cuts vision and slows walking (up to half speed). It also builds up a toxic dose (mostly carbon monoxide; Fractional Effective Dose): the dose makes people confused (wrong turns) and weak, at a dose of 1 they collapse (black) and can no longer move, at a dose of 2 they die.
 
-**Alarm (alarm-and-fire.nls).** A smoke detector every 7 m sets off the alarm when it measures smoke. With "none", evacuees only notice the fire themselves (flames or smoke they see, or people running).
+**Doors (doors.nls).** An open inner door (light blue) lets smoke, heat radiation, air and the view through; a closed door (blue) holds them back, except for a little air through the gaps around it. At the start a share doors-open-at-start of the doors is open. Doors are never locked: people open a closed door when they walk through it. Right after walking through a door they may close it behind them (close-doors?): trained evacuees with a chance of 0.8, untrained 0.3, panicking never, helpers always, and nobody while someone else is in or close to the doorway. Exit doors are always open.
+
+**Alarm (alarm-and-fire.nls).** A smoke detector every 7 m, and at least one in every room, sets off the alarm when it measures smoke. With "none", evacuees only notice the fire themselves (flames or smoke they see, or people running).
 
 **Evacuees (evacuees.nls).** Unaware (dark grey dots) -&gt; aware and waiting a log-normal pre-movement delay (dark yellow; mean 60 s slow whoop, 30 s voice) -&gt; moving. While moving, arousal selects the state:
 
@@ -158,26 +165,28 @@ Arousal rises with flames (most), smoke, crowding and the arousal of the people 
 Press **setup**, then **go**. Left column: people, alarm and run length. Second column: helpers and fire. The monitors show the people inside, evacuated, casualties, mean reaction time, evacuation time and when the alarm went off; the plot shows how many people are in each cognitive state.
 
 - **cognitive-strategy**: "arousal-based" (normal), or force everybody into one state (Experiment 2).
-- **fire-location** and **fire-seed**: where the fire starts, and the fire's own random numbers. With the same fire-seed, every run gets exactly the same fire and smoke, whatever the people do (0 = a new fire every run).
+- **fire-location** and **fire-seed**: where the fire starts, and the fire's own random numbers. With the same fire-seed, every run starts with the same fire and the same open and closed doors (0 = a new fire every run). The people only change the fire by opening and closing doors.
+- **doors-open-at-start**: the share of the inner doors that is open at the start (light blue = open, blue = closed).
+- **close-doors?**: whether people may close doors behind them.
 - **wall-fire-resistance**: minutes before a wall next to the fire fails (30-60 min: fire-rated walls; lower: light partitions).
 
 The BehaviorSpace experiments "experiment-1", "experiment-2" and "sensitivity" reproduce the experiments of the report.
 
 ## THINGS TO NOTICE
 
-How the smoke leaves the burning room and fills nearby rooms first; how queues form at the exits; how panicking evacuees clog doorways; how followers drift with the crowd; how the voice alarm sends familiar evacuees to a closer exit.
+How the smoke leaves the burning room and fills nearby rooms first; how queues form at the exits; how panicking evacuees clog doorways; how followers drift with the crowd; how the voice alarm sends familiar evacuees to a closer exit; how a closed door keeps the smoke in a room and the fire small, and how the fire grows again when someone opens the door.
 
 ## THINGS TO TRY
 
-Compare the alarm types, add helpers, raise proportion-trained, move the fire close to the exits ("auditorium"), lower wall-fire-resistance, or force all evacuees into one cognitive state.
+Compare the alarm types, add helpers, raise proportion-trained, move the fire close to the exits ("auditorium"), lower wall-fire-resistance, open or close all doors (doors-open-at-start 1 or 0), switch close-doors? off, or force all evacuees into one cognitive state.
 
 ## EXTENDING THE MODEL
 
-Several floors and stairs; doors that can be closed; a smoke layer under the ceiling instead of one value per patch; arousal that also depends on personality or group membership; helpers that coordinate.
+Several floors and stairs; self-closing fire doors; a smoke layer under the ceiling instead of one value per patch; arousal that also depends on personality or group membership; helpers that coordinate.
 
 ## NETLOGO FEATURES
 
-with-local-randomness and random-seed give the fire its own random numbers, so the fire is the same across runs. Flood fills over patch-sets make the exit, help, fire-distance and room maps. BehaviorSpace runs the experiments.
+with-local-randomness and random-seed give the fire (and the doors that are open at the start) its own random numbers, so the fire is the same across runs as long as the people open and close the same doors. Flood fills over patch-sets make the exit, help, fire-distance and room maps. BehaviorSpace runs the experiments.
 
 ## RELATED MODELS
 
@@ -197,6 +206,7 @@ Group 3, Multi-Agent Systems, Tilburg University (2025-2026): David Karapetian, 
 - Helbing, D., Farkas, I., &amp; Vicsek, T. (2000). Simulating dynamical features of escape panic. *Nature, 407*, 487-490.
 - Ionescu, S., Nica, I., &amp; Chiriță, N. (2021). Cybernetics approach using agent-based modeling in the process of evacuating educational institutions in case of disasters. *Sustainability, 13*(18), 10277. Model: https://github.com/qfanee/Disaster-Evacuation-Process
 - Jin, T. (1978). Visibility through fire smoke. *Journal of Fire and Flammability, 9*, 135-155.
+- Kawagoe, K. (1958). *Fire behaviour in rooms* (Report No. 27). Building Research Institute, Tokyo.
 - Kyritsi, I., &amp; Chadwick, R. (2017). NetLogoFireEvacuation [NetLogo model]. https://github.com/CollectiveIntelligence/NetLogoFireEvacuation
 - Mawson, A. R. (2005). Understanding mass panic and other collective responses to threat and disaster. *Psychiatry, 68*(2), 95-113.
 - Purser, D. A., &amp; McAllister, J. L. (2016). Assessment of hazards to occupants from smoke, toxic gases, and heat. In M. J. Hurley (Ed.), *SFPE handbook of fire protection engineering* (5th ed.). Springer.
@@ -1072,6 +1082,8 @@ Group 3, Multi-Agent Systems, Tilburg University (2025-2026): David Karapetian, 
           <enumeratedValueSet variable="helper-range"><value value="5"></value></enumeratedValueSet>
           <enumeratedValueSet variable="helper-capacity"><value value="3"></value></enumeratedValueSet>
           <enumeratedValueSet variable="wall-fire-resistance"><value value="30"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="doors-open-at-start"><value value="0.5"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="close-doors?"><value value="true"></value></enumeratedValueSet>
           <steppedValueSet variable="fire-seed" first="1" step="1" last="10"></steppedValueSet>
           <enumeratedValueSet variable="cognitive-strategy"><value value="&quot;arousal-based&quot;"></value></enumeratedValueSet>
           <enumeratedValueSet variable="number-of-helpers"><value value="0"></value><value value="2"></value><value value="4"></value><value value="8"></value></enumeratedValueSet>
@@ -1108,6 +1120,8 @@ Group 3, Multi-Agent Systems, Tilburg University (2025-2026): David Karapetian, 
           <enumeratedValueSet variable="helper-range"><value value="5"></value></enumeratedValueSet>
           <enumeratedValueSet variable="helper-capacity"><value value="3"></value></enumeratedValueSet>
           <enumeratedValueSet variable="wall-fire-resistance"><value value="30"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="doors-open-at-start"><value value="0.5"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="close-doors?"><value value="true"></value></enumeratedValueSet>
           <steppedValueSet variable="fire-seed" first="1" step="1" last="10"></steppedValueSet>
           <enumeratedValueSet variable="cognitive-strategy"><value value="&quot;arousal-based&quot;"></value><value value="&quot;all rational&quot;"></value><value value="&quot;all familiar&quot;"></value><value value="&quot;all follower&quot;"></value><value value="&quot;all panic&quot;"></value></enumeratedValueSet>
           <enumeratedValueSet variable="alarm-type"><value value="&quot;slow whoop&quot;"></value></enumeratedValueSet>
@@ -1140,6 +1154,8 @@ Group 3, Multi-Agent Systems, Tilburg University (2025-2026): David Karapetian, 
           <enumeratedValueSet variable="helper-range"><value value="5"></value></enumeratedValueSet>
           <enumeratedValueSet variable="helper-capacity"><value value="3"></value></enumeratedValueSet>
           <enumeratedValueSet variable="wall-fire-resistance"><value value="30"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="doors-open-at-start"><value value="0.5"></value></enumeratedValueSet>
+          <enumeratedValueSet variable="close-doors?"><value value="true"></value></enumeratedValueSet>
           <steppedValueSet variable="fire-seed" first="1" step="1" last="10"></steppedValueSet>
           <enumeratedValueSet variable="cognitive-strategy"><value value="&quot;arousal-based&quot;"></value></enumeratedValueSet>
           <enumeratedValueSet variable="alarm-type"><value value="&quot;slow whoop&quot;"></value></enumeratedValueSet>
