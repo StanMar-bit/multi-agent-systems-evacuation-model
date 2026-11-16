@@ -52,6 +52,7 @@ RENAME = {
     "time-until-out 0.5": "t50",
     "time-until-out 0.9": "t90",
     "casualties": "casualties",
+    'count-in-state "incapacitated"': "incapacitated",
     "evacuated-count": "evacuated",
     "count evacuees": "left_inside",
     "mean-reaction-time": "reaction_time",
@@ -144,7 +145,7 @@ for dv in ["t90", "evac_time", "reaction_time", "casualties"]:
     add()
 add("### Descriptives per factor: median [IQR]; mean (SD)")
 for factor in ["alarm", "trained", "helpers"]:
-    add(describe(e1.sort_values(factor), factor, ["t90", "evac_time", "reaction_time", "casualties"]))
+    add(describe(e1.sort_values(factor), factor, ["t90", "evac_time", "reaction_time", "casualties", "incapacitated"]))
     add()
 
 # share of cognitive states vs evacuation time (proposal: relate shares to evacuation time)
@@ -207,7 +208,7 @@ add(f"{len(e2)} runs. Runs that ended with people still inside: {(e2['left_insid
     f"runs where 90% never got out (t90 censored at 900 s): {e2['t90_censored'].sum()} "
     f"({', '.join(f'{k}: {v}' for k, v in e2.groupby('strategy', observed=True)['t90_censored'].sum().items() if v)}).")
 add()
-add(describe(e2.sort_values("strategy"), "strategy", ["t90", "evac_time", "casualties"]))
+add(describe(e2.sort_values("strategy"), "strategy", ["t90", "evac_time", "casualties", "incapacitated", "left_inside"]))
 add()
 for dv in ["t90", "evac_time", "casualties"]:
     model = smf.ols(f"{dv} ~ C(strategy) + C(fire)", data=e2).fit()
@@ -280,8 +281,11 @@ if ts_file.exists():
     ts = pd.read_csv(ts_file, skiprows=6)
     ts = ts.rename(columns={"[step]": "t"})
     names = ["unaware", "waiting", "rational", "familiar", "follower", "panic"]
+    colors = ["#575757", "#92921d"] + [STATE_COLORS[s] for s in STATES]
+    if 'count-in-state "incapacitated"' in ts:
+        names.append("incapacitated")
+        colors.append("#000000")
     cols = [f'count-in-state "{n}"' for n in names]
-    colors = ["#bdbdbd", "#fbc02d"] + [STATE_COLORS[s] for s in STATES]
     fig, ax = plt.subplots(figsize=(4.6, 2.8))
     ax.stackplot(ts["t"], *[ts[c] for c in cols], labels=names, colors=colors, alpha=0.9)
     ax.plot(ts["t"], ts["evacuated-count"], color="black", lw=1.2, label="evacuated")
@@ -299,11 +303,11 @@ if ts_file.exists():
     fig.savefig(FIG / "run_timeseries.png", dpi=220)
     plt.close(fig)
 
-views = [RESULTS / "view-150.png", RESULTS / "view-240.png"]
+views = [RESULTS / "view-120.png", RESULTS / "view-200.png"]
 if all(v.exists() for v in views):
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.9))
-    for ax, v, title in zip(axes, views, ["t = 150 s: smoke in the office, people walking out",
-                                          "t = 240 s: office flashed over, smoke in the hall"]):
+    for ax, v, title in zip(axes, views, ["t = 120 s: smoke in the office, people walking out",
+                                          "t = 200 s: office flashed over, smoke in the hall"]):
         ax.imshow(plt.imread(v))
         ax.set_title(title, fontsize=8)
         ax.axis("off")

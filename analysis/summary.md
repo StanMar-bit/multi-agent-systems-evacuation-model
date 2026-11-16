@@ -1,118 +1,118 @@
 # Results of the BehaviorSpace experiments
 
 ## Experiment 1: helpers x alarm type x proportion trained
-360 runs (36 conditions x 10 fires). Runs that ended with people still inside: 19; t90 censored at 900 s: 7.
+360 runs (36 conditions x 10 fires). Runs that ended with people still inside: 40; t90 censored at 900 s: 11.
 
 ### Time until 90% out (s): three-way ANOVA with the fire as block (type II)
 |                                |   df |      F |        p |   partial eta2 |
 |:-------------------------------|-----:|-------:|---------:|---------------:|
-| C(helpers)                     |    3 |  59.13 |   0      |          0.36  |
-| C(alarm)                       |    2 | 286.42 |   0      |          0.645 |
-| C(trained)                     |    2 |   1.54 |   0.2155 |          0.01  |
-| C(fire)                        |    9 |   2.18 |   0.0232 |          0.059 |
-| C(helpers):C(alarm)            |    6 |  26.2  |   0      |          0.333 |
-| C(helpers):C(trained)          |    6 |   2.15 |   0.0478 |          0.039 |
-| C(alarm):C(trained)            |    4 |   0.87 |   0.4831 |          0.011 |
-| C(helpers):C(alarm):C(trained) |   12 |   1    |   0.444  |          0.037 |
+| C(helpers)                     |    3 |  53.95 |   0      |          0.339 |
+| C(alarm)                       |    2 | 269.06 |   0      |          0.631 |
+| C(trained)                     |    2 |   5.56 |   0.0042 |          0.034 |
+| C(fire)                        |    9 |   6.84 |   0      |          0.164 |
+| C(helpers):C(alarm)            |    6 |  23.55 |   0      |          0.31  |
+| C(helpers):C(trained)          |    6 |   1.29 |   0.261  |          0.024 |
+| C(alarm):C(trained)            |    4 |   1.5  |   0.2031 |          0.019 |
+| C(helpers):C(alarm):C(trained) |   12 |   1.03 |   0.4202 |          0.038 |
 | Residual                       |  315 | nan    | nan      |        nan     |
 
-- Kruskal-Wallis t90 by helpers: H = 47.02, p = 3.449e-10
-- Kruskal-Wallis t90 by alarm: H = 198.42, p = 8.205e-44
-- Kruskal-Wallis t90 by trained: H = 0.78, p = 0.6778
+- Kruskal-Wallis t90 by helpers: H = 52.62, p = 2.204e-11
+- Kruskal-Wallis t90 by alarm: H = 182.25, p = 2.663e-40
+- Kruskal-Wallis t90 by trained: H = 2.82, p = 0.2445
 
 ### Total evacuation time (s): three-way ANOVA with the fire as block (type II)
 |                                |   df |      F |        p |   partial eta2 |
 |:-------------------------------|-----:|-------:|---------:|---------------:|
-| C(helpers)                     |    3 |  96.8  |   0      |          0.48  |
-| C(alarm)                       |    2 | 390.07 |   0      |          0.712 |
-| C(trained)                     |    2 |   0.82 |   0.4422 |          0.005 |
-| C(fire)                        |    9 |   1.54 |   0.1313 |          0.042 |
-| C(helpers):C(alarm)            |    6 |  39    |   0      |          0.426 |
-| C(helpers):C(trained)          |    6 |   0.72 |   0.6377 |          0.013 |
-| C(alarm):C(trained)            |    4 |   0.98 |   0.4188 |          0.012 |
-| C(helpers):C(alarm):C(trained) |   12 |   0.65 |   0.8007 |          0.024 |
+| C(helpers)                     |    3 |  72.57 |   0      |          0.409 |
+| C(alarm)                       |    2 | 172.57 |   0      |          0.523 |
+| C(trained)                     |    2 |   7.06 |   0.001  |          0.043 |
+| C(fire)                        |    9 |   5.42 |   0      |          0.134 |
+| C(helpers):C(alarm)            |    6 |  14.2  |   0      |          0.213 |
+| C(helpers):C(trained)          |    6 |   0.31 |   0.9314 |          0.006 |
+| C(alarm):C(trained)            |    4 |   1.27 |   0.2819 |          0.016 |
+| C(helpers):C(alarm):C(trained) |   12 |   0.66 |   0.7857 |          0.025 |
 | Residual                       |  315 | nan    | nan      |        nan     |
 
-- Kruskal-Wallis evac_time by helpers: H = 58.93, p = 9.972e-13
-- Kruskal-Wallis evac_time by alarm: H = 187.54, p = 1.889e-41
-- Kruskal-Wallis evac_time by trained: H = 1.50, p = 0.472
+- Kruskal-Wallis evac_time by helpers: H = 79.56, p = 3.812e-17
+- Kruskal-Wallis evac_time by alarm: H = 152.52, p = 7.596e-34
+- Kruskal-Wallis evac_time by trained: H = 5.62, p = 0.06033
 
 ### Mean reaction time (s): three-way ANOVA with the fire as block (type II)
 |                                |   df |      F |        p |   partial eta2 |
 |:-------------------------------|-----:|-------:|---------:|---------------:|
-| C(helpers)                     |    3 |  18.33 |   0      |          0.149 |
-| C(alarm)                       |    2 | 154.75 |   0      |          0.496 |
-| C(trained)                     |    2 |   1.89 |   0.1533 |          0.012 |
-| C(fire)                        |    9 |   1.51 |   0.1443 |          0.041 |
-| C(helpers):C(alarm)            |    6 |   5.34 |   0      |          0.092 |
-| C(helpers):C(trained)          |    6 |   0.42 |   0.8671 |          0.008 |
-| C(alarm):C(trained)            |    4 |   1.69 |   0.1528 |          0.021 |
-| C(helpers):C(alarm):C(trained) |   12 |   0.34 |   0.9809 |          0.013 |
+| C(helpers)                     |    3 |  23.89 |   0      |          0.185 |
+| C(alarm)                       |    2 | 180.11 |   0      |          0.533 |
+| C(trained)                     |    2 |   0.34 |   0.7156 |          0.002 |
+| C(fire)                        |    9 |   4.74 |   0      |          0.119 |
+| C(helpers):C(alarm)            |    6 |   7.53 |   0      |          0.125 |
+| C(helpers):C(trained)          |    6 |   0.92 |   0.4816 |          0.017 |
+| C(alarm):C(trained)            |    4 |   0.28 |   0.8879 |          0.004 |
+| C(helpers):C(alarm):C(trained) |   12 |   0.91 |   0.5333 |          0.034 |
 | Residual                       |  315 | nan    | nan      |        nan     |
 
-- Kruskal-Wallis reaction_time by helpers: H = 42.19, p = 3.665e-09
-- Kruskal-Wallis reaction_time by alarm: H = 164.00, p = 2.439e-36
-- Kruskal-Wallis reaction_time by trained: H = 0.19, p = 0.9086
+- Kruskal-Wallis reaction_time by helpers: H = 55.62, p = 5.061e-12
+- Kruskal-Wallis reaction_time by alarm: H = 142.25, p = 1.29e-31
+- Kruskal-Wallis reaction_time by trained: H = 0.50, p = 0.7803
 
 ### Casualties: three-way ANOVA with the fire as block (type II)
 |                                |   df |      F |        p |   partial eta2 |
 |:-------------------------------|-----:|-------:|---------:|---------------:|
-| C(helpers)                     |    3 |  10.79 |   0      |          0.093 |
-| C(alarm)                       |    2 |   9.25 |   0.0001 |          0.055 |
-| C(trained)                     |    2 |  10.34 |   0      |          0.062 |
-| C(fire)                        |    9 |   5.94 |   0      |          0.145 |
-| C(helpers):C(alarm)            |    6 |   4.01 |   0.0007 |          0.071 |
-| C(helpers):C(trained)          |    6 |   4.88 |   0.0001 |          0.085 |
-| C(alarm):C(trained)            |    4 |   3.11 |   0.0158 |          0.038 |
-| C(helpers):C(alarm):C(trained) |   12 |   1.58 |   0.0966 |          0.057 |
+| C(helpers)                     |    3 |   6.89 |   0.0002 |          0.062 |
+| C(alarm)                       |    2 |   5.96 |   0.0029 |          0.036 |
+| C(trained)                     |    2 |  13.76 |   0      |          0.08  |
+| C(fire)                        |    9 |   4.68 |   0      |          0.118 |
+| C(helpers):C(alarm)            |    6 |   1.37 |   0.2249 |          0.025 |
+| C(helpers):C(trained)          |    6 |   3.31 |   0.0036 |          0.059 |
+| C(alarm):C(trained)            |    4 |   2.26 |   0.0622 |          0.028 |
+| C(helpers):C(alarm):C(trained) |   12 |   0.64 |   0.807  |          0.024 |
 | Residual                       |  315 | nan    | nan      |        nan     |
 
-- Kruskal-Wallis casualties by helpers: H = 14.74, p = 0.002052
-- Kruskal-Wallis casualties by alarm: H = 5.93, p = 0.05155
-- Kruskal-Wallis casualties by trained: H = 21.69, p = 1.948e-05
+- Kruskal-Wallis casualties by helpers: H = 19.28, p = 0.0002398
+- Kruskal-Wallis casualties by alarm: H = 11.97, p = 0.002515
+- Kruskal-Wallis casualties by trained: H = 32.27, p = 9.82e-08
 
 ### Descriptives per factor: median [IQR]; mean (SD)
-| alarm      | t90                          | evac_time                    | reaction_time                | casualties         |
-|:-----------|:-----------------------------|:-----------------------------|:-----------------------------|:-------------------|
-| none       | 402 [293-542]; 447.5 (188.5) | 486 [359-671]; 536.8 (207.4) | 215 [163-311]; 246.2 (120.7) | 0 [0-1]; 1.4 (3.9) |
-| slow whoop | 234 [204-270]; 241.4 (73.1)  | 300 [257-347]; 310.7 (67.5)  | 127 [99-145]; 123.8 (28.4)   | 0 [0-0]; 0.7 (2.1) |
-| voice      | 208 [184-232]; 206.9 (29.6)  | 256 [224-283]; 256.8 (46.3)  | 111 [91-127]; 109.0 (24.9)   | 0 [0-0]; 0.2 (0.7) |
+| alarm      | t90                          | evac_time                    | reaction_time                | casualties         | incapacitated      |
+|:-----------|:-----------------------------|:-----------------------------|:-----------------------------|:-------------------|:-------------------|
+| none       | 420 [292-579]; 459.9 (201.1) | 511 [366-813]; 565.3 (232.4) | 229 [150-312]; 242.4 (117.3) | 0 [0-1]; 1.0 (3.0) | 0 [0-0]; 0.7 (2.7) |
+| slow whoop | 236 [209-267]; 252.2 (90.2)  | 312 [268-379]; 375.8 (189.3) | 126 [101-142]; 122.5 (27.1)  | 0 [0-0]; 1.0 (2.8) | 0 [0-0]; 0.1 (0.4) |
+| voice      | 208 [186-226]; 204.7 (29.9)  | 250 [225-287]; 264.0 (66.6)  | 110 [90-124]; 107.2 (25.1)   | 0 [0-0]; 0.2 (0.6) | 0 [0-0]; 0.0 (0.0) |
 
-|   trained | t90                          | evac_time                    | reaction_time                | casualties         |
-|----------:|:-----------------------------|:-----------------------------|:-----------------------------|:-------------------|
-|       0   | 244 [205-324]; 309.5 (178.9) | 311 [260-423]; 375.3 (180.5) | 134 [104-164]; 153.8 (85.6)  | 0 [0-1]; 1.4 (4.0) |
-|       0.5 | 241 [214-309]; 291.8 (138.9) | 309 [260-419]; 367.2 (167.4) | 129 [107-170]; 156.0 (83.4)  | 0 [0-0]; 0.7 (1.9) |
-|       1   | 236 [202-292]; 294.6 (156.1) | 296 [248-386]; 361.8 (183.1) | 134 [104-173]; 169.2 (114.1) | 0 [0-0]; 0.2 (0.7) |
+|   trained | t90                          | evac_time                    | reaction_time                | casualties         | incapacitated      |
+|----------:|:-----------------------------|:-----------------------------|:-----------------------------|:-------------------|:-------------------|
+|       0   | 242 [207-369]; 326.2 (198.2) | 324 [260-512]; 428.1 (233.9) | 127 [107-164]; 154.7 (86.7)  | 0 [0-1]; 1.5 (3.7) | 0 [0-0]; 0.7 (2.7) |
+|       0.5 | 242 [210-329]; 303.2 (155.8) | 321 [269-468]; 409.2 (215.7) | 132 [104-171]; 156.5 (82.4)  | 0 [0-0]; 0.6 (1.7) | 0 [0-0]; 0.1 (0.4) |
+|       1   | 232 [201-290]; 287.4 (149.3) | 286 [247-393]; 367.8 (194.7) | 124 [104-157]; 160.9 (109.0) | 0 [0-0]; 0.1 (0.4) | 0 [0-0]; 0.0 (0.2) |
 
-|   helpers | t90                          | evac_time                    | reaction_time                | casualties         |
-|----------:|:-----------------------------|:-----------------------------|:-----------------------------|:-------------------|
-|         0 | 274 [228-526]; 390.2 (230.3) | 369 [293-658]; 480.3 (248.6) | 148 [127-258]; 194.9 (114.7) | 0 [0-1]; 1.9 (4.6) |
-|         2 | 252 [220-375]; 305.6 (132.5) | 329 [275-470]; 381.4 (145.1) | 143 [114-201]; 168.7 (97.1)  | 0 [0-0]; 0.7 (1.9) |
-|         4 | 238 [208-278]; 267.6 (104.3) | 294 [251-362]; 330.4 (120.0) | 130 [110-154]; 151.5 (85.8)  | 0 [0-0]; 0.3 (0.8) |
-|         8 | 215 [188-245]; 231.1 (76.2)  | 262 [232-303]; 280.3 (80.8)  | 107 [85-137]; 123.6 (63.4)   | 0 [0-0]; 0.2 (0.7) |
+|   helpers | t90                          | evac_time                    | reaction_time                | casualties         | incapacitated      |
+|----------:|:-----------------------------|:-----------------------------|:-----------------------------|:-------------------|:-------------------|
+|         0 | 269 [228-554]; 393.6 (225.7) | 461 [304-900]; 548.0 (269.9) | 150 [125-262]; 193.2 (102.9) | 0 [0-1]; 1.4 (3.0) | 0 [0-0]; 0.6 (2.0) |
+|         2 | 247 [214-378]; 323.6 (176.1) | 352 [285-524]; 424.5 (203.8) | 135 [113-183]; 167.9 (103.2) | 0 [0-1]; 1.1 (3.5) | 0 [0-0]; 0.4 (2.5) |
+|         4 | 236 [209-296]; 275.9 (112.1) | 298 [259-417]; 354.6 (155.6) | 125 [106-149]; 148.9 (84.2)  | 0 [0-0]; 0.4 (1.2) | 0 [0-0]; 0.0 (0.1) |
+|         8 | 210 [188-235]; 229.4 (79.8)  | 259 [231-290]; 279.7 (102.9) | 106 [85-123]; 119.4 (61.3)   | 0 [0-0]; 0.1 (0.4) | 0 [0-0]; 0.0 (0.1) |
 
-- Spearman: share of time follower+panic vs time until 90% out: rho = 0.48, p = 2.004e-22
-- Spearman: share of time in panic vs casualties: rho = 0.60, p = 6.142e-36
+- Spearman: share of time follower+panic vs time until 90% out: rho = 0.55, p = 3.272e-30
+- Spearman: share of time in panic vs casualties: rho = 0.62, p = 1.85e-39
 
 ## Experiment 2: forced cognitive strategies (slow whoop, no helpers)
-50 runs. Runs that ended with people still inside: 10; runs where 90% never got out (t90 censored at 900 s): 11 (all panic: 10, arousal-based: 1).
+50 runs. Runs that ended with people still inside: 13; runs where 90% never got out (t90 censored at 900 s): 11 (all panic: 10, arousal-based: 1).
 
-| strategy      | t90                          | evac_time                   | casualties             |
-|:--------------|:-----------------------------|:----------------------------|:-----------------------|
-| all rational  | 256 [241-268]; 251.6 (25.5)  | 324 [311-343]; 325.8 (36.2) | 0 [0-0]; 0.0 (0.0)     |
-| all familiar  | 272 [258-294]; 271.1 (30.6)  | 362 [350-392]; 370.0 (49.5) | 0 [0-0]; 0.1 (0.3)     |
-| all follower  | 277 [251-292]; 272.2 (31.9)  | 351 [324-361]; 348.1 (44.3) | 0 [0-0]; 0.0 (0.0)     |
-| all panic     | 900 [900-900]; 900.0 (0.0)   | 900 [900-900]; 900.0 (0.0)  | 13 [5-18]; 13.9 (11.6) |
-| arousal-based | 286 [257-292]; 336.6 (201.1) | 376 [322-455]; 390.3 (77.2) | 0 [0-3]; 3.1 (6.5)     |
+| strategy      | t90                          | evac_time                    | casualties          | incapacitated       | left_inside            |
+|:--------------|:-----------------------------|:-----------------------------|:--------------------|:--------------------|:-----------------------|
+| all rational  | 252 [240-274]; 251.1 (30.0)  | 317 [308-335]; 321.0 (29.8)  | 0 [0-0]; 0.1 (0.3)  | 0 [0-0]; 0.0 (0.0)  | 0 [0-0]; 0.0 (0.0)     |
+| all familiar  | 274 [263-282]; 273.4 (23.6)  | 363 [360-393]; 375.6 (43.7)  | 0 [0-0]; 0.1 (0.3)  | 0 [0-0]; 0.0 (0.0)  | 0 [0-0]; 0.0 (0.0)     |
+| all follower  | 274 [256-295]; 272.3 (34.0)  | 344 [323-392]; 352.2 (55.4)  | 0 [0-0]; 0.1 (0.3)  | 0 [0-0]; 0.0 (0.0)  | 0 [0-0]; 0.0 (0.0)     |
+| all panic     | 900 [900-900]; 900.0 (0.0)   | 900 [900-900]; 900.0 (0.0)   | 6 [1-12]; 6.7 (6.0) | 4 [1-9]; 7.9 (11.3) | 42 [40-48]; 42.9 (7.1) |
+| arousal-based | 276 [262-396]; 363.8 (203.7) | 384 [346-809]; 533.9 (259.9) | 1 [0-7]; 3.9 (5.2)  | 0 [0-1]; 0.6 (1.1)  | 0 [0-1]; 0.6 (1.1)     |
 
 ### Time until 90% out (s): one-way ANOVA with the fire as block
 |             |   df |      F |        p |   partial eta2 |
 |:------------|-----:|-------:|---------:|---------------:|
-| C(strategy) |    4 | 105.85 |   0      |          0.922 |
-| C(fire)     |    9 |   1.9  |   0.0834 |          0.322 |
+| C(strategy) |    4 | 100.19 |   0      |          0.918 |
+| C(fire)     |    9 |   1.79 |   0.1034 |          0.31  |
 | Residual    |   36 | nan    | nan      |        nan     |
 
-Kruskal-Wallis: H = 25.50, p = 3.982e-05
+Kruskal-Wallis: H = 25.52, p = 3.954e-05
 
 Tukey HSD:
 
@@ -121,56 +121,56 @@ Tukey HSD:
 =====================================================================
    group1        group2    meandiff p-adj    lower     upper   reject
 ---------------------------------------------------------------------
-all familiar  all follower      1.1    1.0 -116.7996  118.9996  False
-all familiar     all panic    628.9    0.0  511.0004  746.7996   True
-all familiar  all rational    -19.5 0.9897 -137.3996   98.3996  False
-all familiar arousal-based     65.5 0.5185  -52.3996  183.3996  False
-all follower     all panic    627.8    0.0  509.9004  745.6996   True
-all follower  all rational    -20.6 0.9873 -138.4996   97.2996  False
-all follower arousal-based     64.4 0.5351  -53.4996  182.2996  False
-   all panic  all rational   -648.4    0.0 -766.2996 -530.5004   True
-   all panic arousal-based   -563.4    0.0 -681.2996 -445.5004   True
-all rational arousal-based     85.0 0.2603  -32.8996  202.8996  False
+all familiar  all follower     -1.1    1.0 -120.4591  118.2591  False
+all familiar     all panic    626.6    0.0  507.2409  745.9591   True
+all familiar  all rational    -22.3 0.9837 -141.6591   97.0591  False
+all familiar arousal-based     90.4 0.2167  -28.9591  209.7591  False
+all follower     all panic    627.7    0.0  508.3409  747.0591   True
+all follower  all rational    -21.2 0.9865 -140.5591   98.1591  False
+all follower arousal-based     91.5 0.2066  -27.8591  210.8591  False
+   all panic  all rational   -648.9    0.0 -768.2591 -529.5409   True
+   all panic arousal-based   -536.2    0.0 -655.5591 -416.8409   True
+all rational arousal-based    112.7 0.0725   -6.6591  232.0591  False
 ---------------------------------------------------------------------
 ```
 
 ### Total evacuation time (s): one-way ANOVA with the fire as block
 |             |   df |      F |        p |   partial eta2 |
 |:------------|-----:|-------:|---------:|---------------:|
-| C(strategy) |    4 | 423.93 |   0      |          0.979 |
-| C(fire)     |    9 |   4.36 |   0.0007 |          0.522 |
+| C(strategy) |    4 |  46.92 |   0      |          0.839 |
+| C(fire)     |    9 |   1.98 |   0.0711 |          0.331 |
 | Residual    |   36 | nan    | nan      |        nan     |
 
-Kruskal-Wallis: H = 27.67, p = 1.454e-05
+Kruskal-Wallis: H = 27.84, p = 1.343e-05
 
 Tukey HSD:
 
 ```
-         Multiple Comparison of Means - Tukey HSD, FWER=0.05         
-=====================================================================
-   group1        group2    meandiff p-adj    lower     upper   reject
----------------------------------------------------------------------
-all familiar  all follower    -21.9  0.848  -83.3222   39.5222  False
-all familiar     all panic    530.0    0.0  468.5778  591.4222   True
-all familiar  all rational    -44.2  0.262 -105.6222   17.2222  False
-all familiar arousal-based     20.3 0.8801  -41.1222   81.7222  False
-all follower     all panic    551.9    0.0  490.4778  613.3222   True
-all follower  all rational    -22.3 0.8394  -83.7222   39.1222  False
-all follower arousal-based     42.2 0.3057  -19.2222  103.6222  False
-   all panic  all rational   -574.2    0.0 -635.6222 -512.7778   True
-   all panic arousal-based   -509.7    0.0 -571.1222 -448.2778   True
-all rational arousal-based     64.5 0.0353    3.0778  125.9222   True
----------------------------------------------------------------------
+        Multiple Comparison of Means - Tukey HSD, FWER=0.05        
+===================================================================
+   group1        group2    meandiff p-adj   lower    upper   reject
+-------------------------------------------------------------------
+all familiar  all follower    -23.4 0.9925 -177.398  130.598  False
+all familiar     all panic    524.4    0.0  370.402  678.398   True
+all familiar  all rational    -54.6 0.8506 -208.598   99.398  False
+all familiar arousal-based    158.3 0.0412    4.302  312.298   True
+all follower     all panic    547.8    0.0  393.802  701.798   True
+all follower  all rational    -31.2  0.978 -185.198  122.798  False
+all follower arousal-based    181.7 0.0134   27.702  335.698   True
+   all panic  all rational   -579.0    0.0 -732.998 -425.002   True
+   all panic arousal-based   -366.1    0.0 -520.098 -212.102   True
+all rational arousal-based    212.9 0.0026   58.902  366.898   True
+-------------------------------------------------------------------
 ```
 
 ### Casualties: one-way ANOVA with the fire as block
 |             |   df |      F |        p |   partial eta2 |
 |:------------|-----:|-------:|---------:|---------------:|
-| C(strategy) |    4 |  10.31 |   0      |          0.534 |
-| C(fire)     |    9 |   1.03 |   0.4344 |          0.205 |
+| C(strategy) |    4 |   8.31 |   0.0001 |          0.48  |
+| C(fire)     |    9 |   1.78 |   0.1055 |          0.309 |
 | Residual    |   36 | nan    | nan      |        nan     |
 
-Kruskal-Wallis: H = 30.17, p = 4.529e-06
+Kruskal-Wallis: H = 19.55, p = 0.0006129
 
 Tukey HSD:
 
@@ -179,16 +179,16 @@ Tukey HSD:
 ==================================================================
    group1        group2    meandiff p-adj   lower    upper  reject
 ------------------------------------------------------------------
-all familiar  all follower     -0.1    1.0  -7.6409  7.4409  False
-all familiar     all panic     13.8    0.0   6.2591 21.3409   True
-all familiar  all rational     -0.1    1.0  -7.6409  7.4409  False
-all familiar arousal-based      3.0 0.7897  -4.5409 10.5409  False
-all follower     all panic     13.9    0.0   6.3591 21.4409   True
-all follower  all rational      0.0    1.0  -7.5409  7.5409  False
-all follower arousal-based      3.1 0.7692  -4.4409 10.6409  False
-   all panic  all rational    -13.9    0.0 -21.4409 -6.3591   True
-   all panic arousal-based    -10.8 0.0017 -18.3409 -3.2591   True
-all rational arousal-based      3.1 0.7692  -4.4409 10.6409  False
+all familiar  all follower      0.0    1.0  -4.5214  4.5214  False
+all familiar     all panic      6.6 0.0013   2.0786 11.1214   True
+all familiar  all rational      0.0    1.0  -4.5214  4.5214  False
+all familiar arousal-based      3.8 0.1373  -0.7214  8.3214  False
+all follower     all panic      6.6 0.0013   2.0786 11.1214   True
+all follower  all rational      0.0    1.0  -4.5214  4.5214  False
+all follower arousal-based      3.8 0.1373  -0.7214  8.3214  False
+   all panic  all rational     -6.6 0.0013 -11.1214 -2.0786   True
+   all panic arousal-based     -2.8 0.4092  -7.3214  1.7214  False
+all rational arousal-based      3.8 0.1373  -0.7214  8.3214  False
 ------------------------------------------------------------------
 ```
 
@@ -196,12 +196,12 @@ all rational arousal-based      3.1 0.7692  -4.4409 10.6409  False
 
 | variant                     |   t90 |   casualties |   share_panic |   t90 vs baseline p |   casualties vs baseline p |   share_panic vs baseline p |
 |:----------------------------|------:|-------------:|--------------:|--------------------:|---------------------------:|----------------------------:|
-| baseline                    | 273.6 |          0.9 |          0.07 |             nan     |                    nan     |                     nan     |
-| companion_probability = 0   | 274.6 |          1.1 |          0.07 |               0.867 |                      0.5   |                       0.461 |
-| companion_probability = 0.6 | 274.1 |          1.7 |          0.06 |               0.752 |                      0.656 |                       0.846 |
-| evacuees = 300              | 301   |          3.8 |          0.07 |               0.037 |                      0.094 |                       0.426 |
-| evacuees = 75               | 276.7 |          0.6 |          0.08 |               0.625 |                      0.25  |                       1     |
-| panic_threshold = 0.65      | 269.6 |          1.3 |          0.06 |               0.389 |                      0.344 |                       0.496 |
-| panic_threshold = 0.85      | 269.9 |          1.5 |          0.04 |               0.221 |                      0.75  |                       0.57  |
-| vision_radius = 15          | 286.2 |          2.3 |          0.1  |               0.061 |                      0.062 |                       0.02  |
-| vision_radius = 5           | 271   |          0.8 |          0.02 |               0.678 |                      0.75  |                       0.008 |
+| baseline                    | 282.4 |          1.4 |          0.08 |             nan     |                    nan     |                     nan     |
+| companion_probability = 0   | 259.8 |          0.7 |          0.06 |               0.006 |                      0.375 |                       0.195 |
+| companion_probability = 0.6 | 276.2 |          0.6 |          0.07 |               0.477 |                      0.156 |                       0.734 |
+| evacuees = 300              | 300.8 |          5.1 |          0.11 |               0.131 |                      0.094 |                       0.557 |
+| evacuees = 75               | 264.9 |          0.3 |          0.03 |               0.111 |                      0.156 |                       0.25  |
+| panic_threshold = 0.65      | 277.3 |          1.6 |          0.1  |               0.865 |                      0.75  |                       0.375 |
+| panic_threshold = 0.85      | 274.3 |          1   |          0.05 |               0.516 |                      0.5   |                       0.055 |
+| vision_radius = 15          | 276.1 |          2.2 |          0.1  |               0.77  |                      0.5   |                       0.82  |
+| vision_radius = 5           | 265.2 |          0   |          0.02 |               0.125 |                      0.031 |                       0.078 |
